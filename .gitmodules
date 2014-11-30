@@ -1,0 +1,3 @@
+[submodule "screepslib"]
+	path = screepslib
+	url = git@github.com:HalfVoxel/screepslib.git
