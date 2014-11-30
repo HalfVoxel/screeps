@@ -1,7 +1,7 @@
 class Base implements Ref.HasID {
 	public var type : TypeLookup;
 	public var id : Int;
-	public var linked : SCRef<Entity>;
+	public var linked : Entity;
 	public var manager : AIManager;
 	public var my : Bool;
 

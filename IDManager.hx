@@ -107,7 +107,6 @@ class IDManager {
 			}
 
 			ent.manager = manager;
-			id2objs[ent.id] = ent;
 
 			if (destroyed) {
 				trace ("Detected destruction of " + ent.id + " of type " + ent.type);
@@ -117,8 +116,14 @@ class IDManager {
 				var owned : OwnedEntity = cast ent.linked;
 				ent.my = owned.my != null ? owned.my : false;
 
+				id2objs[ent.id] = ent;
 				loadedObjects.push(ent);
 			}
+		}
+
+		// Make sure all IDs are rewritten to real references
+		for (obj in loadedObjects) {
+			rewriteForDeserialization(obj);
 		}
 
 		// Process spawns and create objects for them if none exists
@@ -146,13 +151,14 @@ class IDManager {
 							} else {
 								obj[key] = '@' + val.id;
 							}
-						} else if (typeof(val=='object')) {
+						} else if (typeof(val) == 'object') {
 							rec(obj[key]);
 						}
 					}
 			    }
 			}
 	    };
+	    rec(obj);
 		");
 	}
 
@@ -177,6 +183,7 @@ class IDManager {
 			    }
 			}
 	    };
+	    rec(obj);
 		");
 	}
 

@@ -1,16 +1,21 @@
 using Spawn.SpawnExtender;
 
+enum Category {
+	Military;
+	Economy;
+}
+
 class AISpawn extends Base {
 
 	public var src(get, null) : Spawn;
-	inline function get_src() return cast linked.toEntity();
+	inline function get_src() return cast linked;
 
-	static var roleTypes : Array<{role: AIManager.Role, body : Array<BodyPart>}> = 
+	static var roleTypes : Array<{role: AIManager.Role, body : Array<BodyPart>, category : AISpawn.Category}> = 
 	[
-		{role: Harvester, body: [Move,Work,Work,Work,Carry]},
-		{role: EnergyCarrier, body: [Move, Carry]},
-		{role: MeleeAttacker, body: [Move, Move, Attack, Attack]},
-		{role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack]}
+		{role: Harvester, body: [Move,Work,Work,Work,Carry], category: Economy},
+		{role: EnergyCarrier, body: [Move, Carry, Carry], category: Economy},
+		{role: MeleeAttacker, body: [Move, Move, Attack, Attack], category: Military},
+		{role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack], category: Military}
 	];
 
 	public function new () {
@@ -27,21 +32,28 @@ class AISpawn extends Base {
 		var bestRole = roleTypes[0];
 		var bestRoleScore = -1000.0;
 
+		var hostileMilitary = src.room.find(HostileCreeps).length;
+		var friendlyMilitary = manager.getRoleCount(MeleeAttacker) + manager.getRoleCount(RangedAttacker);
+
 		if (IDManager.creeps.length > 0) {
 			for (role in roleTypes) {
 				var score = 0.0;
 				score = 1 - (manager.getRoleCount(role.role) / (IDManager.creeps.length));
 
+				if (hostileMilitary >= friendlyMilitary && role.category == Military) {
+					score *= 2;
+				}
+
 				if (role.role == Harvester && manager.getRoleCount(role.role) < 2) {
 					score += 1;
 				}
 
-				if (role.role == EnergyCarrier && manager.getRoleCount(EnergyCarrier)*2 >= manager.getRoleCount(Harvester)) {
-					score *= 0.5;
+				if (role.role == EnergyCarrier) {
+					score += manager.carrierNeeded*0.05 / manager.getRoleCount(Harvester);
 				}
 
-				if (role.role == EnergyCarrier) {
-					score += manager.carrierNeeded*0.05;
+				if (role.role == EnergyCarrier && manager.getRoleCount(EnergyCarrier)*2 >= manager.getRoleCount(Harvester)) {
+					score *= 0.5;
 				}
 
 				if (score > bestRoleScore) {

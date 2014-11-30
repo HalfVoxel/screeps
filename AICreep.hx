@@ -3,12 +3,13 @@ using Math;
 class AICreep extends Base {
 
 	public var src(get, null) : Creep;
-	inline function get_src() return cast linked.toEntity();
+	inline function get_src() return cast linked;
 
-	var targetSource : SCRef<Source>;
+	var targetSource : Source;
 	var role : AIManager.Role;
 
-	public var currentTarget : Ref<AIAssigned>;
+	public var currentTarget : AIAssigned;
+	public var currentCreepTarget : AICreep;
 
 	static var dx = [1, 1, 0, -1, -1, -1, 0, 1];
 	static var dy = [0, 1, 1, 1, 0, -1, -1, -1];
@@ -78,6 +79,9 @@ class AICreep extends Base {
 					var score = 1 - fractionOfCap;
 
 					var path = src.pos.findPathTo (creep.src, { ignoreCreeps:true });
+
+					if (src.pos.isNearTo(creep.src.pos)) score += 1;
+
 					if ( path != null ) {
 						score *= 1/ ((path.length / 25) + 1);
 
@@ -123,7 +127,7 @@ class AICreep extends Base {
 
 		if ( src.energy < src.energyCapacity*0.8 ) {
 			
-			var bestScore = 0.0;
+			var bestScore = -1.0;
 
 			for (creep in IDManager.creeps) {
 				if (creep.role == Harvester) {
@@ -134,11 +138,26 @@ class AICreep extends Base {
 
 					var path = src.pos.findPathTo (creep.src, { ignoreCreeps:true });
 					if ( path != null ) {
+
 						score *= 1/ ((path.length / 25) + 1);
 
 						if ( score > bestScore ) {
-							bestScore = score;
-							bestHarvester = creep;
+
+							var targeting = 0;
+							for (other in IDManager.creeps) {
+								if (other.role == EnergyCarrier) {
+									if (other.currentCreepTarget == creep && other != this) {
+										targeting++;
+									}
+								}
+							}
+
+							score *= 1.0 / (targeting+1);
+
+							if ( score > bestScore ) {
+								bestScore = score;
+								bestHarvester = creep;
+							}
 						}
 					}
 				}
@@ -150,7 +169,7 @@ class AICreep extends Base {
 
 			for (dropped in droppedEnergy) {
 				var path = src.pos.findPathTo(dropped, { ignoreCreeps: false});
-				if ( path != null && dropped.energy > path.length+15 ) { // Needs to contain at least 15 energy when we get to it
+				if ( path != null && dropped.energy > path.length+50 ) { // Needs to contain at least 20 energy when we get to it
 
 					var score = dropped.energy - path.length*2;
 					var aienergy : AIEnergy = IDManager.from(dropped);
@@ -166,22 +185,18 @@ class AICreep extends Base {
 
 			if (bestEnergy != null) {
 				var energy : AIEnergy = IDManager.from (bestEnergy);
-				trace("Got2 ");
 				
 				energy.assign(this, bestEnergyScore);
-				trace ("Now assigned to " + energy + " " + currentTarget);
 			}
 		}	
 
-		trace("target... " + currentTarget );
 		if (currentTarget != null) {
 			trace("Persuing target...");
 			var obj : AIAssigned = currentTarget;
 			switch (obj.type) {
 			case AIEnergy: {
 				var energy : Energy = cast obj.linked;
-				trace (energy + " " + energy.pos);
-				trace ("res " + src.moveTo(energy.pos));
+				src.moveTo(energy.pos);
 				if ( src.pos.isNearTo(energy.pos) ) {
 					src.pickup(energy);
 					obj.unassign();
@@ -262,6 +277,17 @@ class AICreep extends Base {
 			}
 
 			// result is in occ
+
+			for ( x in 0...size ) {
+				for ( y in 0...size ) {
+					var look = src.room.lookAt({x: x-offset+src.pos.x, y: y-offset+src.pos.y});
+					for ( lookItem in look ) {
+						if (lookItem.type == Terrain && lookItem.terrain == Wall ) {
+							occ[y*size + x] = 6;
+						}
+					}
+				}
+			}
 
 			var bestx = 0;
 			var besty = 0;
