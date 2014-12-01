@@ -1,4 +1,5 @@
 using Math;
+using SCExtenders;
 
 class AICreep extends Base {
 
@@ -47,13 +48,14 @@ class AICreep extends Base {
 		var source : Source = targetSource;
 		if ( source == null || source.energy == 0 ) {
 
-			var closest : Source = cast src.pos.findNearest (SourcesActive);
-
-			if (closest != null) {
-				var path = src.pos.findPathTo(closest);
-				if (path != null && (source == null || 2*path.length < source.ticksToRegeneration)) {
-					targetSource = closest;
+			switch(src.pos.findClosestActiveSource ()) {
+				case Some(closest): {
+					var path = src.pos.findPathTo(closest);
+					if (path != null && (source == null || 2*path.length < source.ticksToRegeneration)) {
+						targetSource = closest;
+					}
 				}
+				case None:
 			}
 		}
 
@@ -95,16 +97,25 @@ class AICreep extends Base {
 			}
 
 			
-			var spawn : Spawn = cast src.pos.findNearest (MySpawns);
-			var spawnDist = spawn != null ? src.pos.findPathTo (spawn, { ignoreCreeps:true }).length : 1000;
+			var tookAction = false;
 
-			if (spawn != null && spawnDist*2 < dist) {
-				if (src.pos.isNearTo(spawn.pos)) {
-					src.transferEnergy(spawn);
-				} else {
-					src.moveTo (spawn);
+			switch(src.pos.findClosestFriendlySpawn ()) {
+				case Some(spawn): {
+					var spawnDist = src.pos.findPathTo (spawn, { ignoreCreeps:true }).length;
+
+					if (spawnDist*2 < dist) {
+						tookAction = true;
+						if (src.pos.isNearTo(spawn.pos)) {
+							src.transferEnergy(spawn);
+						} else {
+							src.moveTo (spawn);
+						}
+					}
 				}
-			} else if (bestCarrier != null) {
+				case None: {}
+			}
+
+			if (!tookAction && bestCarrier != null) {
 				if (src.pos.isNearTo(bestCarrier.src.pos)) {
 					src.transferEnergy(bestCarrier.src);
 				} else {
@@ -207,7 +218,7 @@ class AICreep extends Base {
 		} else if ( bestHarvester != null ) {
 			src.moveTo (bestHarvester.src.pos);
 		} else {
-			var target : Spawn = cast src.pos.findNearest (MySpawns);
+			var target : Spawn = cast src.pos.findClosest (MySpawns);
 
 			if ( target != null ) {
 				src.moveTo(target);
@@ -220,14 +231,16 @@ class AICreep extends Base {
 	}
 
 	function meleeAttacker () {
-		var target : Creep = cast src.pos.findNearest (HostileCreeps);
 
-		if (target != null) {
-			src.moveTo(target);
+		switch(src.pos.findClosestHostileCreep ()) {
+			case Some(target): {
+				src.moveTo(target);
 
-			if ( src.pos.isNearTo(target.pos)) {
-				src.attack(target);
+				if ( src.pos.isNearTo(target.pos)) {
+					src.attack(target);
+				}
 			}
+			case None:
 		}
 	}
 
@@ -327,7 +340,7 @@ class AICreep extends Base {
 				src.rangedAttack(target);
 			}
 		} else {
-			var target : Creep = cast src.pos.findNearest (HostileCreeps);
+			var target : Creep = cast src.pos.findClosest (HostileCreeps);
 			if (target != null) {
 				src.moveTo(target);
 			}

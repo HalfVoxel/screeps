@@ -8,7 +8,7 @@ class AIManager {
 	}
 
 	public function tick () {
-		if (carrierNeeded > 0) carrierNeeded -= 1;
+		if (carrierNeeded > 0) carrierNeeded -= 1.3;
 	}
 
 	public function getRoleCount ( role : Role ) {

@@ -88,10 +88,14 @@ class IDManager {
 			scId2objs[obj.id] = obj;
 		}
 
+		var toDestroy = new Array<Base>();
+
 		for (obj in objects) {
 			var ent : Base = cast obj;
 
-			var destroyed = ent.linked == null;
+			// Right now, ids have not been deserialized, so we have to do this
+			var linkStr : String = cast ent.linked;
+			var destroyed = bySCID (linkStr != null ? cast linkStr.substring(1,linkStr.length) : null) == null;
 
 			switch (ent.type) {
 			case AICreep:
@@ -110,20 +114,30 @@ class IDManager {
 
 			if (destroyed) {
 				trace ("Detected destruction of " + ent.id + " of type " + ent.type);
-				ent.onDestroyed();
+				toDestroy.push(ent);
 			} else {
-				// Make sure the 'my' flag is set correctly
-				var owned : OwnedEntity = cast ent.linked;
-				ent.my = owned.my != null ? owned.my : false;
-
 				id2objs[ent.id] = ent;
 				loadedObjects.push(ent);
 			}
 		}
 
 		// Make sure all IDs are rewritten to real references
-		for (obj in loadedObjects) {
-			rewriteForDeserialization(obj);
+		for (ent in loadedObjects) {
+			rewriteForDeserialization(ent);
+
+			// Make sure the 'my' flag is set correctly
+			var owned : OwnedEntity = cast ent.linked;
+			ent.my = owned.my != null ? owned.my : false;
+		}
+
+		// Make sure all IDs are rewritten to real references
+		for (ent in toDestroy) {
+			rewriteForDeserialization(ent);
+		}
+
+		// Destroy objects
+		for (ent in toDestroy) {
+			ent.onDestroyed();
 		}
 
 		// Process spawns and create objects for them if none exists

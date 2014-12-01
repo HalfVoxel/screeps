@@ -14,7 +14,7 @@ class AISpawn extends Base {
 	[
 		{role: Harvester, body: [Move,Work,Work,Work,Carry], category: Economy},
 		{role: EnergyCarrier, body: [Move, Carry, Carry], category: Economy},
-		{role: MeleeAttacker, body: [Move, Move, Attack, Attack], category: Military},
+		{role: MeleeAttacker, body: [Tough, Move, Move, Attack, Attack], category: Military},
 		{role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack], category: Military}
 	];
 
