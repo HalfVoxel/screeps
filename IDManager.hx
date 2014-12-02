@@ -64,30 +64,6 @@ class IDManager {
 		// Hacky way to find the current room
 		var room = Game.spawns["Spawn1"].room;
 
-		// Make sure IDs are hooked up
-		for (obj in room.find(Creeps)) scId2objs[obj.id] = obj;
-		for (obj in room.find(Sources)) scId2objs[obj.id] = obj;
-		for (obj in room.find(Structures)) scId2objs[obj.id] = obj;
-		for (obj in room.find(Flags)) scId2objs[obj.id] = obj;
-		for (obj in room.find(ConstructionSites)) scId2objs[obj.id] = obj;
-		for (obj in room.find(DroppedEnergy)) scId2objs[obj.id] = obj;
-
-		for (obj in Game.creeps) {
-			scId2objs[obj.id] = obj;
-		}
-
-		for (obj in Game.flags) {
-			scId2objs[obj.id] = obj;
-		}
-
-		for (obj in Game.structures) {
-			scId2objs[obj.id] = obj;
-		}
-
-		for (obj in Game.spawns) {
-			scId2objs[obj.id] = obj;
-		}
-
 		var toDestroy = new Array<Base>();
 
 		for (obj in objects) {
@@ -262,11 +238,11 @@ class IDManager {
 		obj2.my = owned.my != null ? owned.my : false;
 	}
 
-	public static function bySCID (id : String) {
-		return scId2objs[id];
+	public static inline function bySCID (id : String) {
+		return Game.getObjectById (id);
 	}
 
-	public static function byID (id : Int) {
+	public static inline function byID (id : Int) {
 		return id2objs[id];
 	}
 

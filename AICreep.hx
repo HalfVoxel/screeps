@@ -1,5 +1,6 @@
 using Math;
 using SCExtenders;
+import Utils.*;
 
 class AICreep extends Base {
 
@@ -78,6 +79,8 @@ class AICreep extends Base {
 				if (creep.role == EnergyCarrier) {
 					var fractionOfCap = creep.src.energy / creep.src.energyCapacity;
 
+					if (fractionOfCap == 1) continue;
+
 					var score = 1 - fractionOfCap;
 
 					var path = src.pos.findPathTo (creep.src, { ignoreCreeps:true });
@@ -108,7 +111,7 @@ class AICreep extends Base {
 						if (src.pos.isNearTo(spawn.pos)) {
 							src.transferEnergy(spawn);
 						} else {
-							src.moveTo (spawn);
+							logOnCriticalError(src.moveTo (spawn));
 						}
 					}
 				}
@@ -218,14 +221,15 @@ class AICreep extends Base {
 		} else if ( bestHarvester != null ) {
 			src.moveTo (bestHarvester.src.pos);
 		} else {
-			var target : Spawn = cast src.pos.findClosest (MySpawns);
+			switch ( src.pos.findClosestFriendlySpawn () ) {
+				case Some(target): {
+					src.moveTo(target);
 
-			if ( target != null ) {
-				src.moveTo(target);
-
-				if (src.pos.isNearTo(target.pos)) {
-					src.transferEnergy(target);
+					if (src.pos.isNearTo(target.pos)) {
+						src.transferEnergy(target);
+					}
 				}
+				case None:
 			}
 		}
 	}
@@ -340,9 +344,9 @@ class AICreep extends Base {
 				src.rangedAttack(target);
 			}
 		} else {
-			var target : Creep = cast src.pos.findClosest (HostileCreeps);
-			if (target != null) {
-				src.moveTo(target);
+			switch (src.pos.findClosestHostileCreep ()) {
+				case Some(target): src.moveTo(target);
+				case None:
 			}
 		}
 	}
