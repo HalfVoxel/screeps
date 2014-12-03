@@ -18,17 +18,22 @@ class AIManager {
 	}
 
 	public function getRoleCount ( role : Role ) {
-		while (cast(role,Int) >= roleCounter.length) {
+		/*while (cast(role,Int) >= roleCounter.length) {
 			roleCounter.push(0);
 		}
-		return roleCounter[role];
+		return roleCounter[role];*/
+		var counter = 0;
+		for (creep in IDManager.creeps) {
+			if (creep.role == role) counter++;
+		}
+		return counter;
 	}
 
 	public function modRoleCount ( role : Role, diff : Int ) {
-		while (cast(role,Int) >= roleCounter.length) {
+		/*while (cast(role,Int) >= roleCounter.length) {
 			roleCounter.push(0);
 		}
-		roleCounter[role] += diff;
+		roleCounter[role] += diff;*/
 	}
 }
 

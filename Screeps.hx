@@ -6,11 +6,19 @@ import Storage.Memory;
 class Screeps {
 	static public function main():Void {
 		
+		/*var c2 = CompileTime.getAllClasses(Base);
+		for (type in c2) {
+			trace(Type.getClassName (type));
+			var v = Type.createInstance(type, []);
+			trace(v);
+		}*/
+
 		try {
 			IDManager.tick ();
 
 			new Screeps().run();
 		} catch (e : Dynamic) {
+			trace(e);
 			trace(e.stack);
 		}
 

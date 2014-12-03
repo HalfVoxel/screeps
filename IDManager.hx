@@ -75,26 +75,21 @@ class IDManager {
 			var linkStr : String = cast ent.linked;
 			var destroyed = bySCID (linkStr != null ? cast linkStr.substring(1,linkStr.length) : null) == null;
 
-			switch (ent.type) {
-			case AICreep:
-				ent = cast copyFields (obj, new AICreep());
-				if (!destroyed) creeps.push (cast ent);
-			case AISpawn:
-				ent = cast copyFields (obj, new AISpawn());
-				if (!destroyed) spawns.push (cast ent);
-			case AIEnergy:
-				ent = cast copyFields (obj, new AIEnergy());
-			case AIMap:
-				ent = cast copyFields (obj, new AIMap());
-			case Base:
-				throw "Cannot instantiate abstract Base";
-			}
-
-			ent.manager = manager;
-
+			var ent : Base = Type.createInstance (Type.resolveClass (ent.type), []);
+			
 			if (ent.isStandalone()) {
 				destroyed = false;
 			}
+
+			copyFields (obj, ent);
+
+			switch(ent.type) {
+				case AICreep|CreepEnergyCarrier: if (!destroyed) creeps.push (cast ent);
+				case AISpawn: if (!destroyed) spawns.push (cast ent);
+				default:
+			}
+
+			ent.manager = manager;
 
 			if (destroyed) {
 				trace (Game.time + ": Detected destruction of " + ent.id + " of type " + ent.type);

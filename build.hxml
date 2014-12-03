@@ -1,4 +1,5 @@
 -cp screepsLib
 -main Screeps
+-lib compiletime
 -js out.js
 

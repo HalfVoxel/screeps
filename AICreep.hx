@@ -11,18 +11,11 @@ class AICreep extends Base {
 	public var role : AIManager.Role;
 
 	public var currentTarget : AIAssigned;
-	public var currentCreepTarget : AICreep;
 
 	static var dx = [1, 1, 0, -1, -1, -1, 0, 1];
 	static var dy = [0, 1, 1, 1, 0, -1, -1, -1];
 
-	public function new () {
-		super();
-		type = TypeLookup.AICreep;
-	}
-	
-	public function configure ( role : AIManager.Role ) {
-		this.role = role;
+	public function configure () {
 
 		// Creeps are spawned, so they need to be put in a queue first, therefore to not register it
 		initialize(false);
@@ -42,7 +35,7 @@ class AICreep extends Base {
 		case Harvester: harvester ();
 		case MeleeAttacker: meleeAttacker ();
 		case RangedAttacker: rangedAttacker ();
-		case EnergyCarrier: energyCarrier ();
+		default: throw "Not supported";
 		}
 	}
 
@@ -70,6 +63,15 @@ class AICreep extends Base {
 			} else {
 				src.moveTo (source);
 			}
+
+			for (creep in IDManager.creeps) {
+				if (creep.role == EnergyCarrier) {
+					if (src.pos.isNearTo(creep.src.pos)) {
+						src.transferEnergy(creep.src);
+					}
+				}
+			}
+
 		} else {
 
 			var bestCarrier = null;
@@ -127,111 +129,6 @@ class AICreep extends Base {
 					src.moveTo (bestCarrier.src);
 					manager.carrierNeeded += 2;
 				}
-			}
-		}
-	}
-
-	function lerp (a : Float, b : Float, t : Float) {
-		return a + (b-a)*t;
-	}
-
-	function energyCarrier () {
-
-		var bestHarvester = null;
-
-		var actionTaken = false;
-
-		if ( src.energy < src.energyCapacity*0.8 ) {
-			
-			var bestScore = -1.0;
-
-			for (creep in IDManager.creeps) {
-				if (creep.role == Harvester) {
-					var fractionOfCap = creep.src.energy / creep.src.energyCapacity;
-					var fractionOfMyCap = creep.src.energy / src.energyCapacity;
-
-					var score = lerp (fractionOfMyCap, fractionOfCap, fractionOfCap);
-
-					var path = src.pos.findPathTo (creep.src, { ignoreCreeps:true });
-					if ( path != null ) {
-
-						score *= 1/ ((path.length / 25) + 1);
-
-						if ( score > bestScore ) {
-
-							var targeting = 0;
-							for (other in IDManager.creeps) {
-								if (other.role == EnergyCarrier) {
-									if (other.currentCreepTarget == creep && other != this) {
-										targeting++;
-									}
-								}
-							}
-
-							score *= 1.0 / (targeting+1);
-
-							if ( score > bestScore ) {
-								bestScore = score;
-								bestHarvester = creep;
-							}
-						}
-					}
-				}
-			}
-
-			var droppedEnergy : Array<Energy> = cast src.room.find(DroppedEnergy);
-			var bestEnergy : Energy = null;
-			var bestEnergyScore = 0.0;
-
-			for (dropped in droppedEnergy) {
-				var path = src.pos.findPathTo(dropped, { ignoreCreeps: false});
-				if ( path != null && dropped.energy > path.length+50 ) { // Needs to contain at least 20 energy when we get to it
-
-					var score = dropped.energy - path.length*2;
-					var aienergy : AIEnergy = IDManager.from(dropped);
-					var mult = aienergy.assigned != null && aienergy.assigned != this ? 0.7 : 1;
-					//trace("Got ");
-					//trace (aienergy);
-					if (score > bestEnergyScore && score*mult > aienergy.assignedScore) {
-						bestEnergyScore = score;
-						bestEnergy = dropped;
-					}
-				}
-			}
-
-			if (bestEnergy != null) {
-				var energy : AIEnergy = IDManager.from (bestEnergy);
-				
-				energy.assign(this, bestEnergyScore);
-			}
-		}	
-
-		if (currentTarget != null) {
-			trace("Persuing target...");
-			var obj : AIAssigned = currentTarget;
-			switch (obj.type) {
-			case AIEnergy: {
-				var energy : Energy = cast obj.linked;
-				src.moveTo(energy.pos);
-				if ( src.pos.isNearTo(energy.pos) ) {
-					src.pickup(energy);
-					obj.unassign();
-				}
-			}
-			default: throw "Invalid type '" + obj.type +"'";
-			}
-		} else if ( bestHarvester != null ) {
-			src.moveTo (bestHarvester.src.pos);
-		} else {
-			switch ( src.pos.findClosestFriendlySpawn () ) {
-				case Some(target): {
-					src.moveTo(target);
-
-					if (src.pos.isNearTo(target.pos)) {
-						src.transferEnergy(target);
-					}
-				}
-				case None:
 			}
 		}
 	}

@@ -1,4 +1,4 @@
-using Spawn.SpawnExtender;
+using Spawn.SpawnExtender;	
 
 enum Category {
 	Military;
@@ -10,18 +10,13 @@ class AISpawn extends Base {
 	public var src(get, null) : Spawn;
 	inline function get_src() return cast linked;
 
-	static var roleTypes : Array<{role: AIManager.Role, body : Array<BodyPart>, category : AISpawn.Category}> = 
+	static var roleTypes : Array<{type : Class<AICreep>, role: AIManager.Role, body : Array<BodyPart>, category : AISpawn.Category}> = 
 	[
-		{role: Harvester, body: [Move,Work,Work,Work,Carry], category: Economy},
-		{role: EnergyCarrier, body: [Move, Carry, Carry], category: Economy},
-		{role: MeleeAttacker, body: [Tough, Move, Move, Attack, Attack], category: Military},
-		{role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack], category: Military}
+		{type: AICreep, role: Harvester, body: [Move,Work,Work,Work,Carry], category: Economy},
+		{type: CreepEnergyCarrier, role: EnergyCarrier, body: [Move, Carry, Carry], category: Economy},
+		{type: AICreep, role: MeleeAttacker, body: [Tough, Move, Move, Attack, Attack], category: Military},
+		{type: AICreep, role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack], category: Military}
 	];
-
-	public function new () {
-		super();
-		type = TypeLookup.AISpawn;
-	}
 
 	public function configure () {
 		initialize();
@@ -73,7 +68,9 @@ class AISpawn extends Base {
 			var res = src.spawn(bestRole.body);
 			switch (res) {
 				case Ok(name): {
-					IDManager.queueAddCreep(name, new AICreep().configure(bestRole.role));
+					var creep = Base.instantiate (bestRole.type);
+					creep.role = bestRole.role;
+					IDManager.queueAddCreep(name, creep);
 					trace("Spawning with name: " + name);
 
 					if (bestRole.role == EnergyCarrier) {
