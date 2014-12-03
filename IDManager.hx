@@ -55,7 +55,9 @@ class IDManager {
 		var toRemove : Array<String> = [];
 		for (queItem in creepQueue.keys()) {
 			if (Game.creeps[queItem] != null) {
-				addLink (Game.creeps[queItem], copyFields(creepQueue[queItem], new AICreep()));
+				var ent = new AICreep();
+				addLink (Game.creeps[queItem], copyFields(creepQueue[queItem], ent));
+				loadedObjects.push(ent);
 				toRemove.push(queItem);
 			}
 		}
@@ -82,14 +84,20 @@ class IDManager {
 				if (!destroyed) spawns.push (cast ent);
 			case AIEnergy:
 				ent = cast copyFields (obj, new AIEnergy());
+			case AIMap:
+				ent = cast copyFields (obj, new AIMap());
 			case Base:
 				throw "Cannot instantiate abstract Base";
 			}
 
 			ent.manager = manager;
 
+			if (ent.isStandalone()) {
+				destroyed = false;
+			}
+
 			if (destroyed) {
-				trace ("Detected destruction of " + ent.id + " of type " + ent.type);
+				trace (Game.time + ": Detected destruction of " + ent.id + " of type " + ent.type);
 				toDestroy.push(ent);
 			} else {
 				id2objs[ent.id] = ent;
@@ -97,13 +105,17 @@ class IDManager {
 			}
 		}
 
+		rewriteForDeserialization(manager);
+
 		// Make sure all IDs are rewritten to real references
 		for (ent in loadedObjects) {
 			rewriteForDeserialization(ent);
 
-			// Make sure the 'my' flag is set correctly
-			var owned : OwnedEntity = cast ent.linked;
-			ent.my = owned.my != null ? owned.my : false;
+			if (!ent.isStandalone()) {
+				// Make sure the 'my' flag is set correctly
+				var owned : OwnedEntity = cast ent.linked;
+				ent.my = owned.my != null ? owned.my : false;
+			}
 		}
 
 		// Make sure all IDs are rewritten to real references
@@ -191,7 +203,7 @@ class IDManager {
 
 	public static function tickEnd () {
 
-		Memory["creepQueue"] = creepQueue;
+		
 		Memory["refmap"] = objs2ref;
 
 		var objects = new Array<Dynamic>();
@@ -202,13 +214,21 @@ class IDManager {
 			objects.push(obj);
 		}
 
+		for (obj in creepQueue) {
+			obj.manager = untyped __js__("undefined");
+			rewriteForSerialization(obj);
+		}
+
+		Memory["creepQueue"] = creepQueue;
+
 		Memory["objects"] = haxe.Json.parse (haxe.Json.stringify (objects));
 
+		rewriteForSerialization(manager);
 		Memory["manager"] = haxe.Json.parse (haxe.Json.stringify (manager));
 		//trace(objects);
 	}
 
-	public static function initialize ( obj : Base ) {
+	public static function initialize ( obj : Base, register = true ) {
 		obj.manager = manager;
 
 		var id : Int = Memory["counter"];
@@ -216,6 +236,7 @@ class IDManager {
 		obj.id = id;
 
 		id2objs[id] = obj;
+		if (register) loadedObjects.push (obj);
 	}
 
 	public static function queueAddCreep (name : String, creep : AICreep) {
@@ -232,7 +253,6 @@ class IDManager {
 		obj2.linked = obj1;
 
 		objs2ref[obj1.id] = obj2;
-		loadedObjects.push (obj2);
 		
 		var owned : OwnedEntity = cast obj1;
 		obj2.my = owned.my != null ? owned.my : false;

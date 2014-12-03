@@ -4,11 +4,17 @@ class AIManager {
 
 	public var carrierNeeded : Float = 0;
 
-	public function new () {
-	}
+	public var map : AIMap;
+
+	public function new () {}
 
 	public function tick () {
 		if (carrierNeeded > 0) carrierNeeded -= 1.3;
+
+		if (map == null) map = new AIMap().configure();
+
+		map.tick();
+		
 	}
 
 	public function getRoleCount ( role : Role ) {

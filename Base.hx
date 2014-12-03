@@ -7,9 +7,11 @@ class Base implements Ref.HasID {
 
 	public function new () {}
 
-	function initialize () {
+	public function isStandalone () { return false; }
+
+	public function initialize ( register = true ) {
 		my = true;
-		IDManager.initialize(this);
+		IDManager.initialize(this, register);
 		onCreated();
 	}
 

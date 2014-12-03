@@ -1,0 +1,4 @@
+-cp screepsLib
+-main Screeps
+-js out.js
+

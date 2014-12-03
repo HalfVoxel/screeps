@@ -25,6 +25,8 @@ class Screeps {
 
 	public function run () {
 
+		IDManager.manager.tick();
+		
 		for (spawn in IDManager.spawns) {
 			if (spawn.src.my) {
 				spawn.tick();

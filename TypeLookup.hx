@@ -4,4 +4,5 @@ abstract TypeLookup(String) {
 	var AICreep = "AICreep";
 	var AISpawn = "AISpawn";
 	var AIEnergy = "AIEnergy";
+	var AIMap = "AIMap";
 }

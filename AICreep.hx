@@ -8,7 +8,7 @@ class AICreep extends Base {
 	inline function get_src() return cast linked;
 
 	var targetSource : Source;
-	var role : AIManager.Role;
+	public var role : AIManager.Role;
 
 	public var currentTarget : AIAssigned;
 	public var currentCreepTarget : AICreep;
@@ -23,7 +23,9 @@ class AICreep extends Base {
 	
 	public function configure ( role : AIManager.Role ) {
 		this.role = role;
-		initialize();
+
+		// Creeps are spawned, so they need to be put in a queue first, therefore to not register it
+		initialize(false);
 		return this;
 	}
 
@@ -244,7 +246,9 @@ class AICreep extends Base {
 					src.attack(target);
 				}
 			}
-			case None:
+			case None: {
+				src.moveTo(manager.map.regroupingPoint);
+			}
 		}
 	}
 
@@ -345,8 +349,10 @@ class AICreep extends Base {
 			}
 		} else {
 			switch (src.pos.findClosestHostileCreep ()) {
-				case Some(target): src.moveTo(target);
-				case None:
+			case Some(target): src.moveTo(target);
+			case None: {
+				src.moveTo(manager.map.regroupingPoint);
+			}
 			}
 		}
 	}
