@@ -32,18 +32,13 @@ class CreepEnergyCarrier extends AICreep {
 
 					var score = lerp (fractionOfMyCap, fractionOfCap, fractionOfCap);
 
-					// Bonus score for keeping the same target
-					if (creep == harvesterTarget) {
-						score *= 2;
-					}
-
 					// Ticks until full
 					var predictedFull = 20.0;
 					var workParts = creep.src.getActiveBodyparts(Work);
 
-					if (fractionOfCap == 100) {
+					if (fractionOfCap > 0.99) {
 						predictedFull = 0;
-					} else {
+					} else if (workParts > 0) {
 						for (ent in creep.src.room.find(SourcesActive)) {
 							if (creep.src.pos.isNearTo (ent.pos)) {
 								predictedFull = (creep.src.energyCapacity - creep.src.energy)/ (workParts * 2);
@@ -51,8 +46,8 @@ class CreepEnergyCarrier extends AICreep {
 							}
 						}
 					}
-					
-					score += -predictedFull / 4;
+
+					score -= predictedFull / 4;
 
 					var alreadyCovered = false;
 					for (carrier in IDManager.creeps) {
@@ -74,6 +69,11 @@ class CreepEnergyCarrier extends AICreep {
 					if ( path != null) {
 
 						score *= 1/ ((path.length / 25) + 1);
+
+						// Bonus score for keeping the same target
+						if (creep == harvesterTarget) {
+							score *= 3;
+						}
 
 						if ( score > bestScore ) {
 
