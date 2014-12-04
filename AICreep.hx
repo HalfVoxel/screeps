@@ -12,6 +12,8 @@ class AICreep extends Base {
 
 	public var currentTarget : AIAssigned;
 
+	public var attackTarget : Creep;
+
 	static var dx = [1, 1, 0, -1, -1, -1, 0, 1];
 	static var dy = [0, 1, 1, 1, 0, -1, -1, -1];
 
@@ -41,8 +43,11 @@ class AICreep extends Base {
 
 	function harvester () {
 
+		// Recalculate source
+		if (src.energy == 0 && Game.time % 6 == id % 6) targetSource = null;
+
 		var source : Source = targetSource;
-		if ( source == null || source.energy == 0 ) {
+		if ( source == null ) {
 
 			switch(src.pos.findClosestActiveSource ()) {
 				case Some(closest): {
@@ -135,17 +140,23 @@ class AICreep extends Base {
 
 	function meleeAttacker () {
 
-		switch(src.pos.findClosestHostileCreep ()) {
-			case Some(target): {
-				src.moveTo(target);
-
-				if ( src.pos.isNearTo(target.pos)) {
-					src.attack(target);
+		if (attackTarget == null || RoomPosition.squaredDistance (src.pos, attackTarget.pos) < 4*4 || Game.time % 6 == id % 6) {
+			switch(src.pos.findClosestHostileCreep ()) {
+				case Some(target): {
+					attackTarget = target;
 				}
+				case None: attackTarget = null;
 			}
-			case None: {
-				src.moveTo(manager.map.regroupingPoint);
+		}
+
+		if (attackTarget != null) {
+			src.moveTo(attackTarget);
+
+			if ( src.pos.isNearTo(attackTarget.pos)) {
+				src.attack(attackTarget);
 			}
+		} else {
+			src.moveTo(manager.map.regroupingPoint);
 		}
 	}
 
@@ -235,8 +246,8 @@ class AICreep extends Base {
 			bestx -= offset;
 			besty -= offset;
 
-			trace(occ);
-			trace(bestx + " " + besty + " " +bestScore + " " + bestDist);
+			//trace(occ);
+			//trace(bestx + " " + besty + " " +bestScore + " " + bestDist);
 
 			var target : Creep = cast targets[0];
 			src.moveTo(bestx + src.pos.x, besty + src.pos.y);

@@ -15,7 +15,8 @@ class AISpawn extends Base {
 		{type: AICreep, role: Harvester, body: [Move,Work,Work,Work,Carry], category: Economy},
 		{type: CreepEnergyCarrier, role: EnergyCarrier, body: [Move, Carry, Carry], category: Economy},
 		{type: AICreep, role: MeleeAttacker, body: [Tough, Move, Move, Attack, Attack], category: Military},
-		{type: AICreep, role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack], category: Military}
+		{type: AICreep, role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack], category: Military},
+		{type: Healer, role: Healer, body: [Move, Move, Heal, Heal], category: Military},
 	];
 
 	public function configure () {
@@ -35,7 +36,7 @@ class AISpawn extends Base {
 				var score = 0.0;
 				score = 1 - (manager.getRoleCount(role.role) / (IDManager.creeps.length));
 
-				if (hostileMilitary >= friendlyMilitary && role.category == Military) {
+				if (hostileMilitary >= friendlyMilitary && hostileMilitary > 0 && role.category == Military) {
 					score *= 2;
 				}
 

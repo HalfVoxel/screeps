@@ -35,7 +35,7 @@ class AIMap extends Base {
 	}
 
 	public override function tick () {
-
+		
 		if (movementPatternMap == null) movementPatternMap = createMap();
 		if (tmpMap == null) tmpMap = createMap();
 
@@ -53,12 +53,14 @@ class AIMap extends Base {
 
 		decay(movementPatternMap);
 
-		switch (Game.getRoomByName("1-1")) {
-			case Some(room): {
-				if (terrainMap == null) terrainMap = generateTerrainMap (room);
-				regroupingMap = haxe.Timer.measure (function () { return generateRegroupingMap (room);});
+		if (Game.time % 5 == 0) {
+			switch (Game.getRoomByName("1-1")) {
+				case Some(room): {
+					if (terrainMap == null) terrainMap = generateTerrainMap (room);
+					regroupingMap = haxe.Timer.measure (function () { return generateRegroupingMap (room);});
+				}
+				case None: trace("Could not find room");
 			}
-			case None: trace("Could not find room");
 		}
 	}
 

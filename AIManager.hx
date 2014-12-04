@@ -43,4 +43,5 @@ abstract Role(Int) to Int from Int {
 	var MeleeAttacker = 1;
 	var RangedAttacker = 2;
 	var EnergyCarrier = 3;
+	var Healer = 4;
 }

@@ -84,7 +84,7 @@ class IDManager {
 			copyFields (obj, ent);
 
 			switch(ent.type) {
-				case AICreep|CreepEnergyCarrier: if (!destroyed) creeps.push (cast ent);
+				case AICreep|CreepEnergyCarrier|Healer: if (!destroyed) creeps.push (cast ent);
 				case AISpawn: if (!destroyed) spawns.push (cast ent);
 				default:
 			}
