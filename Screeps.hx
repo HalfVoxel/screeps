@@ -3,6 +3,15 @@ using Spawn.SpawnExtender;
 using Utils;
 import Storage.Memory;
 
+class Test {
+	public var f:Float;
+	public var heapIndex : Int;
+	
+	public function new (v : Float) {
+		f = v;
+	}
+}
+
 class Screeps {
 	static public function main():Void {
 		
@@ -12,6 +21,33 @@ class Screeps {
 			var v = Type.createInstance(type, []);
 			trace(v);
 		}*/
+
+		
+
+		var queue = new PriorityQueue<Test>();
+		queue.push(new Test(0));
+		queue.push(new Test(5));
+		queue.push(new Test(10));
+		queue.push(new Test(0));
+		queue.push(new Test(1));
+
+		trace (queue.pop());
+		trace (queue.pop());
+		trace (queue.pop());
+		trace (queue.pop());
+
+		queue.push(new Test(1));		
+	
+		trace (queue.pop());
+		trace (queue.pop());
+		trace (queue.pop());
+		trace (queue.pop());
+
+		queue.push(new Test(1));
+	
+		trace (queue.pop());
+		
+		new AIPathfinder();
 
 		try {
 			haxe.Timer.measure (function () { 

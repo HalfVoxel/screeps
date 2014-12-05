@@ -16,21 +16,31 @@ class AIMap extends Base {
 
 	public override function isStandalone () { return true; }
 
+	public function getTerrainMap () {
+		switch (Game.getRoomByName("1-1")) {
+			case Some(room): {
+				if (terrainMap == null) terrainMap = generateTerrainMap (room);
+			}
+			case None: throw "Could not find room";
+		}
+
+		return terrainMap;
+	}
 	public function configure () {
 		type = AIMap;
 		initialize ();
 		return this;
 	}
 
-	inline function getRoomPos ( map : Array<Float>, x : Int, y : Int ) {
+	public static inline function getRoomPos ( map : Array<Float>, x : Int, y : Int ) {
 		return map[(y+1)*MapSize + x+1];
 	}
 
-	inline function setRoomPos ( map : Array<Float>, x : Int, y : Int, value : Float ) {
+	static inline function setRoomPos ( map : Array<Float>, x : Int, y : Int, value : Float ) {
 		map[(y+1)*MapSize + x+1] = value;
 	}
 
-	inline function addDeltaRoomPos ( map : Array<Float>, x : Int, y : Int, delta : Float ) {
+	static inline function addDeltaRoomPos ( map : Array<Float>, x : Int, y : Int, delta : Float ) {
 		map[(y+1)*MapSize + x+1] += delta;
 	}
 
@@ -56,7 +66,7 @@ class AIMap extends Base {
 		if (Game.time % 5 == 0) {
 			switch (Game.getRoomByName("1-1")) {
 				case Some(room): {
-					if (terrainMap == null) terrainMap = generateTerrainMap (room);
+					//if (terrainMap == null) terrainMap = generateTerrainMap (room);
 					regroupingMap = haxe.Timer.measure (function () { return generateRegroupingMap (room);});
 				}
 				case None: trace("Could not find room");
@@ -186,10 +196,10 @@ class AIMap extends Base {
 				for (item in res) {
 					if (item.type == Terrain) {
 						if (item.terrain == Wall) {
-							score = 1000;
+							score = -1;
 						}
 						if (item.terrain == Swamp) {
-							score += 100;
+							score += 2;
 						}
 					}
 				}
@@ -217,10 +227,14 @@ class AIMap extends Base {
 
 		zero (map);
 
+		var terrain = getTerrainMap();
+
 		for (y in 0...Room.Width) {
 			for (x in 0...Room.Height) {
 
-				var score = getRoomPos (terrainMap, x,y);
+				var score = getRoomPos (terrain, x,y);
+				if (score == -1) score = 10;
+				score *= 100;
 
 				score += Math.log(getRoomPos(movementPatternMap, x, y) + 1)*100;
 				setRoomPos(map, x, y, score);

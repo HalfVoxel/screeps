@@ -9,4 +9,5 @@ abstract TypeLookup(String) to String {
 	var AIAssigned = "AIMap";
 	var CreepEnergyCarrier = "CreepEnergyCarrier";
 	var Healer = "Healer";
+	var AIPathfinder = "AIPathfinder";
 }
