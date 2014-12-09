@@ -140,7 +140,7 @@ class AISpawn extends Base {
 					}
 
 					if (role.role == Builder) {
-						score += 0.0002*energyNeededForConstruction / (manager.getOriginalRoleCount(Builder)+1);
+						score += 0.0001*energyNeededForConstruction / (manager.getOriginalRoleCount(Builder)+1);
 					}
 
 					if (score > bestRoleScore) {

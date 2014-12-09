@@ -276,7 +276,6 @@ class AIMap extends Base {
 		for (y in 0...Room.Width) {
 			for (x in 0...Room.Height) {
 				var res = room.lookAt({x: x,y: y});
-				trace(res);
 				var score = 0.0;
 				for (item in res) {
 					if (item.type == Terrain) {

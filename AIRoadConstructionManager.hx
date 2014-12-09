@@ -9,6 +9,9 @@ class AIRoadConstructionManager extends Base {
 		return this;
 	}
 
+	static var near1x = [0, 1, 1, 0, -1, -1, -1, 0, 1];
+	static var near1y = [0, 0, 1, 1, 1, 0, -1, -1, -1];
+
 	public function generateBuildPlans () : Array<{type: StructureType, pos: {x:Int,y:Int}}> {
 
 		if ( roadMap == null ) roadMap = AIMap.createMap (Room.Width);
@@ -44,6 +47,15 @@ class AIRoadConstructionManager extends Base {
 			}
 		}
 
+		for (site in IDManager.constructionSites) {
+			for (i in 0...near1x.length) {
+				var nx = site.src.pos.x + near1x[i];
+				var ny = site.src.pos.y + near1y[i];
+				if (nx >= 0 && ny >= 0 && nx < Room.Width && ny < Room.Height) {
+					roadMap[ny*Room.Width + nx] = Math.max (roadMap[ny*Room.Width + nx] - 50, 0);
+				}
+			}
+		}
 		AIMap.decay (roadMap, 0.99);
 
 		var result = new Array<{type: StructureType, pos: {x:Int,y:Int}}> ();

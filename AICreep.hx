@@ -89,13 +89,16 @@ class AICreep extends Base {
 					if (path.length != 0 && (source == null || (source.energy == 0 && 4*path.length < source.ticksToRegeneration))) {
 						closest;
 					} else {
-						null;
+						if (path.length == 0) {
+							trace("....");
+						}
+						source;
 						//trace("... " + path.length);
 					}
 				}
 				case None: {
 					trace("Found no source!!");
-					null;
+					source;
 				}
 			}
 
