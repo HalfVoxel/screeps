@@ -79,7 +79,7 @@ class Healer extends AICreep {
 			src.moveTo(bestTarget.src);
 			src.heal(bestTarget.src);
 		} else {
-			src.moveTo(manager.map.regroupingPoint);
+			src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
 		}
 	}
 }

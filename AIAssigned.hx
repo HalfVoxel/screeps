@@ -1,26 +1,78 @@
 class AIAssigned extends Base {
-	public var assigned : AICreep = null;
-	public var assignedScore : Float = 0;
+	public var assigned : Array<AICreep> = [];
+	public var assignedScores : Array<Float> = [];
+	public var maxAssignedCount = 1;
 
 	public function assign (creep : AICreep, score : Float) {
-		if (creep.currentTarget != null) {
-			creep.currentTarget.unassign();
+		if (assigned == null || assignedScores == null) {
+			assigned = [];
+			assignedScores = [];
 		}
-		unassign();
 
-		assigned = creep;
-		assignedScore = score;
+		if (creep.currentTarget == this) {
+			assignedScores[assigned.indexOf(creep)] = score;
+			return;
+		}
+
+		while (assigned.length >= maxAssignedCount && assigned.length > 0) {
+			var mn = 0;
+			for (i in 0...assigned.length) if (assignedScores[i] < assignedScores[mn]) mn = i;
+
+			unassign(assigned[mn]);
+		}
+
+		if ( creep.currentTarget != null ) creep.currentTarget.unassign(creep);
+
+		assigned.push (creep);
+		assignedScores.push (score);
 		creep.currentTarget = this;
 	}
 
-	public function unassign () {
-		if (assigned != null) {
-			if (assigned.currentTarget != this) throw "API bugged";
+	public function cleanup () {
 
-			assigned.currentTarget = null;
+		if (assigned == null || assignedScores == null) {
+			assigned = [];
+			assignedScores = [];
+		}
 
-			assigned = null;
-			assignedScore = 0;
+		for (i in 0...assigned.length) {
+			if (assigned[i] == null) {
+				assigned.splice (i,i+1);
+				assignedScores.splice(i,i+1);
+				break;
+			}
+		}
+	}
+
+	public override function tick () {
+		cleanup ();
+	}
+
+	public function betterAssignScore ( score : Float ) {
+		if ( assigned.length < maxAssignedCount ) return true;
+
+		for ( i in 0...assignedScores.length ) {
+			if (assignedScores[i] < score ) return true;
+		}
+		return false;
+	}
+
+	public function unassign ( creep : AICreep) {
+		if (creep == null) cleanup ();
+
+		if (assigned != null && creep != null) {
+			if (creep.currentTarget != this) {
+				trace ("========== API bugged =========");				
+				trace ("Expected " + id + " got " + (creep.currentTarget != null ? ""+creep.currentTarget.id : "<null>"));
+				trace(creep);
+				trace(untyped __js__("typeof(creep)"));
+			}
+
+			creep.currentTarget = null;
+
+			var i = assigned.indexOf(creep);
+			assigned.splice (i,i+1);
+			assignedScores.splice(i,i+1);
 		}
 	}
 }

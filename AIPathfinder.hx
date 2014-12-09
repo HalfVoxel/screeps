@@ -2,7 +2,7 @@ typedef Vec2 = {x:Int, y:Int};
 class State {
 	public var x: Int;
 	public var y:Int;
-	public var g:Int;
+	public var g:Float;
 	public var f:Float;
 	public var pathID : Int;
 	public var target : Bool;
@@ -79,7 +79,7 @@ class AIPathfinder extends Base {
 		return res;
 	}
 
-	public function findPath (from : Vec2, to : Vec2) {
+	public function findPath (from : Vec2, to : Vec2, ignoreStartEnd : Bool, ?customCosts : Array<Float>) {
 		pathID++;
 		queue.clear();
 
@@ -91,7 +91,14 @@ class AIPathfinder extends Base {
 			}
 		}
 
-		var start = new State (from.x, from.y, 0, 0.0);
+		var start = nodes[from.y*Room.Width + from.x]; //new State (from.x, from.y, 0, 0.0);
+
+		if (!ignoreStartEnd) {
+			if ( costs[start.y*Room.Width + start.x] == -1 ||  (customCosts != null ? customCosts[start.y*Room.Width + start.x] : 0) == -1 ) {
+				return null;
+			}
+		}
+		
 		start.parent = null;
 		start.pathID = pathID;
 		queue.push(start);
@@ -106,7 +113,7 @@ class AIPathfinder extends Base {
 				break;
 			}
 
-			var nextg = Math.floor(costs[state.y*Room.Width + state.x]);
+			var nextg = state.g + costs[state.y*Room.Width + state.x] + (customCosts != null ? customCosts[state.y*Room.Width + state.x] : 0);
 
 			for (i in 0...8) {
 				var nx = state.x + dx[i];
@@ -117,6 +124,7 @@ class AIPathfinder extends Base {
 					if (other.pathID != pathID || nextg < other.g) {
 
 						if (costs[ny*Room.Width + nx] == -1) continue;
+						if (customCosts != null && customCosts[ny*Room.Width + nx] == -1) continue;
 
 						other.pathID = pathID;
 						other.parent = state;

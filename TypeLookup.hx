@@ -10,4 +10,8 @@ abstract TypeLookup(String) to String {
 	var CreepEnergyCarrier = "CreepEnergyCarrier";
 	var Healer = "Healer";
 	var AIPathfinder = "AIPathfinder";
+	var AIConstructionManager = "AIConstructionManager";
+	var AIConstructionSite = "AIConstructionSite";
+	var AICollectorPoints = "AICollectorPoints";
+	var AIRoadConstructionManager = "AIRoadConstructionManager";
 }

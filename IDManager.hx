@@ -8,6 +8,8 @@ class IDManager {
 
 	public static var creeps : Array<AICreep> = new Array<AICreep>();
 	public static var spawns : Array<AISpawn> = new Array<AISpawn>();
+	public static var energy : Array<AIEnergy> = new Array<AIEnergy>();
+	public static var constructionSites : Array<AIConstructionSite> = new Array<AIConstructionSite>();
 
 	public static var loadedObjects : Array<Base>;
 
@@ -63,8 +65,12 @@ class IDManager {
 		}
 		for (key in toRemove) creepQueue.remove(key);
 
+		var room = null;
 		// Hacky way to find the current room
-		var room = Game.spawns["Spawn1"].room;
+		switch (Game.getRoomByName ("1-1")) {
+			case Some(roomObject): room = roomObject;
+			case None: throw "Cannot find room";
+		}
 
 		var toDestroy = new Array<Base>();
 
@@ -86,10 +92,10 @@ class IDManager {
 			switch(ent.type) {
 				case AICreep|CreepEnergyCarrier|Healer: if (!destroyed) creeps.push (cast ent);
 				case AISpawn: if (!destroyed) spawns.push (cast ent);
+				case AIEnergy: if (!destroyed) energy.push (cast ent);
+				case AIConstructionSite: if(!destroyed) constructionSites.push (cast ent);
 				default:
 			}
-
-			ent.manager = manager;
 
 			if (destroyed) {
 				trace (Game.time + ": Detected destruction of " + ent.id + " of type " + ent.type);
@@ -105,6 +111,7 @@ class IDManager {
 		// Make sure all IDs are rewritten to real references
 		for (ent in loadedObjects) {
 			rewriteForDeserialization(ent);
+			ent.manager = manager;
 
 			if (!ent.isStandalone()) {
 				// Make sure the 'my' flag is set correctly
@@ -116,6 +123,7 @@ class IDManager {
 		// Make sure all IDs are rewritten to real references
 		for (ent in toDestroy) {
 			rewriteForDeserialization(ent);
+			ent.manager = manager;
 		}
 
 		// Destroy objects
@@ -129,6 +137,14 @@ class IDManager {
 				addLink(obj, new AISpawn().configure());
 			}
 		}
+
+		// Process construction sites and create objects for them if none exists
+		for (obj in room.find(ConstructionSites)) {
+			if (objs2ref[obj.id] == null) {
+				addLink(obj, new AIConstructionSite().configure());
+			}
+		}
+
 		//trace ("Loaded " + spawns.length + " " + creeps.length);
 	}
 
@@ -148,8 +164,16 @@ class IDManager {
 							} else {
 								obj[key] = '@' + val.id;
 							}
+						} else if (val instanceof Array && val.length > 20 && typeof(val[0]) == 'number') {
+
+							var buffer = new ArrayBuffer(val.length*4);
+							var floatBuffer = new Float32Array(buffer);
+							for (var i = 0; i < val.length; i++ ) {
+								floatBuffer[i] = val[i];
+							}
+							obj[key] = '+' + THREE.Base64.fromArrayBuffer(buffer);
 						} else if (typeof(val) == 'object') {
-							rec(obj[key]);
+							rec(val);
 						}
 					}
 			    }
@@ -168,13 +192,20 @@ class IDManager {
 		    	if ( obj.hasOwnProperty(key)) {
 
 		    		var val = obj[key];
-		    		if (val != null && typeof(val) == 'string') {
-		    			if (val[0] == '#') {
-		    				// Screeps ref
-							obj[key] = IDManager.bySCID(val.substring(1,val.length));
-						} else if ( val[0] == '@' ) {
-							// Our ref
-							obj[key] = IDManager.byID(parseInt(val.substring(1,val.length)));
+		    		if (val != null) {
+
+		    			if (typeof(val) == 'string') {
+			    			if (val[0] == '#') {
+			    				// Screeps ref
+								obj[key] = IDManager.bySCID(val.substring(1,val.length));
+							} else if ( val[0] == '@' ) {
+								// Our ref
+								obj[key] = IDManager.byID(parseInt(val.substring(1,val.length)));
+							} else if ( val[0] == '+') {
+								obj[key] = THREE.Base64.toArrayOfFloats (obj[key].substring(1,val.length));
+							}
+						} else if (typeof(val) == 'object') {
+							rec(val);
 						}
 					}
 			    }

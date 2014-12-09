@@ -2,4 +2,4 @@
 -main Screeps
 -lib compiletime
 -js out.js
-
+-cmd cat base64.js out.js > out2.js

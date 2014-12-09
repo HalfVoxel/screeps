@@ -9,7 +9,8 @@ class AICreep extends Base {
 
 	var targetSource : Source;
 	public var role : AIManager.Role;
-
+	public var originalRole : AIManager.Role;
+	
 	public var currentTarget : AIAssigned;
 
 	public var attackTarget : Creep;
@@ -37,36 +38,79 @@ class AICreep extends Base {
 		case Harvester: harvester ();
 		case MeleeAttacker: meleeAttacker ();
 		case RangedAttacker: rangedAttacker ();
+		case Builder: builder ();
 		default: throw "Not supported";
+		}
+	}
+
+	function builder () {
+		if (currentTarget == null) {
+			role = Harvester;
+			harvester();
+			return;
+		}
+
+		var near = src.pos.isNearTo (currentTarget.linked.pos);
+
+		if (src.energy < src.energyCapacity && (!near || src.energy == 0)) {
+
+			switch(src.pos.findClosestFriendlySpawn ()) {
+				case Some(spawn): {
+					var spawnDist = src.pos.findPathTo (spawn, { ignoreCreeps:true }).length;
+
+					
+					if (src.pos.isNearTo(spawn.pos)) {
+						spawn.transferEnergy (src, Std.int (Math.min (src.energyCapacity - src.energy, spawn.energy)));
+					} else {
+						src.moveTo (spawn, {heuristicWeight: 1});
+					}
+				}
+				case None: harvester ();
+			}
+		} else if (!near) {
+			src.moveTo (currentTarget.linked, {heuristicWeight: 1});
+		} else {
+			var constructionSite : AIConstructionSite = cast currentTarget;
+			src.build (constructionSite.src);
 		}
 	}
 
 	function harvester () {
 
 		// Recalculate source
-		if (src.energy == 0 && Game.time % 6 == id % 6) targetSource = null;
+		if (targetSource != null && targetSource.energy == 0) targetSource = null;
 
-		var source : Source = targetSource;
-		if ( source == null ) {
+		var source = targetSource;
+		if ( source == null || Game.time % 6 == id % 6 ) {
 
-			switch(src.pos.findClosestActiveSource ()) {
+			targetSource = switch(src.pos.findClosestActiveSource ({heuristicWeight: 1})) {
 				case Some(closest): {
-					var path = src.pos.findPathTo(closest);
-					if (path != null && (source == null || 2*path.length < source.ticksToRegeneration)) {
-						targetSource = closest;
+					var path = src.pos.findPathTo(closest.pos, {heuristicWeight: 1});
+					if (path.length != 0 && (source == null || (source.energy == 0 && 4*path.length < source.ticksToRegeneration))) {
+						closest;
+					} else {
+						null;
+						//trace("... " + path.length);
 					}
 				}
-				case None:
+				case None: {
+					trace("Found no source!!");
+					null;
+				}
 			}
+
+			//targetSource = best;
 		}
 
-		var target : Source = targetSource;
+		if (src.energy == src.energyCapacity) {
+			//manager.carrierNeeded += 2;
+		}
 
-		if (src.energy < src.energyCapacity && source != null) {
-			if (src.pos.isNearTo(target.pos)) {
-				src.harvest(source);
+		if (targetSource != null) {
+			if (src.pos.isNearTo(targetSource.pos)) {
+				src.harvest(targetSource);
 			} else {
-				src.moveTo (source);
+				src.moveTo (targetSource, {heuristicWeight: 1});
 			}
 
 			for (creep in IDManager.creeps) {
@@ -77,54 +121,63 @@ class AICreep extends Base {
 				}
 			}
 
-		} else {
+		}// else {
 
-			var bestCarrier = null;
+			/*var bestCarrier = null;
 
 			var bestScore = 0.0;
 			var dist = 10000;
 
-			for (creep in IDManager.creeps) {
-				if (creep.role == EnergyCarrier) {
-					var fractionOfCap = creep.src.energy / creep.src.energyCapacity;
+			if (false) {
+				for (creep in IDManager.creeps) {
+					if (creep.role == EnergyCarrier) {
+						var fractionOfCap = creep.src.energy / creep.src.energyCapacity;
 
-					if (fractionOfCap == 1) continue;
+						if (fractionOfCap == 1) continue;
 
-					var score = 1 - fractionOfCap;
+						var score = 1 - fractionOfCap;
 
-					var path = src.pos.findPathTo (creep.src, { ignoreCreeps:true });
+						var path = src.pos.findPathTo (creep.src, { ignoreCreeps:true });
 
-					if (src.pos.isNearTo(creep.src.pos)) score += 1;
+						if (src.pos.isNearTo(creep.src.pos)) score += 1;
 
-					if ( path != null ) {
-						score *= 1/ ((path.length / 25) + 1);
+						if ( path.length != 0 ) {
+							score *= 1/ ((path.length / 25) + 1);
 
-						if ( score > bestScore ) {
-							bestScore = score;
-							bestCarrier = creep;
-							dist = path.length;
+							if ( score > bestScore ) {
+								bestScore = score;
+								bestCarrier = creep;
+								dist = path.length;
+							}
 						}
 					}
 				}
 			}
-
-			
+		
 			var tookAction = false;
 
-			switch(src.pos.findClosestFriendlySpawn ()) {
-				case Some(spawn): {
-					var spawnDist = src.pos.findPathTo (spawn, { ignoreCreeps:true }).length;
+			if ( manager.getRoleCount (EnergyCarrier) == 0 ) {
+				switch(src.pos.findClosestFriendlySpawn ()) {
+					case Some(spawn): {
+						var spawnDist = src.pos.findPathTo (spawn, { ignoreCreeps:true }).length;
 
-					if (spawnDist*2 < dist) {
-						tookAction = true;
-						if (src.pos.isNearTo(spawn.pos)) {
-							src.transferEnergy(spawn);
-						} else {
-							logOnCriticalError(src.moveTo (spawn));
+						if (spawnDist*2 < dist) {
+							tookAction = true;
+							if (src.pos.isNearTo(spawn.pos)) {
+								src.transferEnergy(spawn);
+							} else {
+								logOnCriticalError(src.moveTo (spawn));
+							}
 						}
 					}
+					case None: {}
 				}
-				case None: {}
+			}
+
+			for (creep in IDManager.creeps) {
+				if (creep.role == EnergyCarrier && src.pos.isNearTo(creep.src.pos)) {
+					src.transferEnergy(creep.src);
+				}
 			}
 
 			if (!tookAction && bestCarrier != null) {
@@ -135,7 +188,7 @@ class AICreep extends Base {
 					manager.carrierNeeded += 2;
 				}
 			}
-		}
+		}*/
 	}
 
 	function meleeAttacker () {
@@ -150,13 +203,13 @@ class AICreep extends Base {
 		}
 
 		if (attackTarget != null) {
-			src.moveTo(attackTarget);
+			src.moveTo(attackTarget, {heuristicWeight: 1});
 
 			if ( src.pos.isNearTo(attackTarget.pos)) {
 				src.attack(attackTarget);
 			}
 		} else {
-			src.moveTo(manager.map.regroupingPoint);
+			src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
 		}
 	}
 
@@ -250,16 +303,16 @@ class AICreep extends Base {
 			//trace(bestx + " " + besty + " " +bestScore + " " + bestDist);
 
 			var target : Creep = cast targets[0];
-			src.moveTo(bestx + src.pos.x, besty + src.pos.y);
+			src.moveTo(bestx + src.pos.x, besty + src.pos.y, {heuristicWeight: 1});
 
 			if ( src.pos.inRangeTo(target.pos, 3)) {
 				src.rangedAttack(target);
 			}
 		} else {
 			switch (src.pos.findClosestHostileCreep ()) {
-			case Some(target): src.moveTo(target);
+			case Some(target): src.moveTo(target, {heuristicWeight: 1});
 			case None: {
-				src.moveTo(manager.map.regroupingPoint);
+				src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
 			}
 			}
 		}
