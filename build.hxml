@@ -1,5 +1,7 @@
 -cp screepsLib
 -main Screeps
 -lib compiletime
+-lib hxmath
+-D HXMATH_USE_DYNAMIC_STRUCTURES
 -js out.js
 -cmd cat base64.js out.js > out2.js
