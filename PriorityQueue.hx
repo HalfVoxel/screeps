@@ -20,6 +20,11 @@ class PriorityQueue<T:HasF> {
 	}
 
 	public function clear () {
+
+		for (i in 1...nextElementIndex) {
+			data[i].heapIndex = -1;
+		}
+
 		nextElementIndex = 1;
 	}
 
@@ -37,6 +42,16 @@ class PriorityQueue<T:HasF> {
 
 		trickle(nextElementIndex);
 		nextElementIndex++;
+	}
+
+	public function pushOrTrickle  (v : T ) {
+		if (v.heapIndex != -1) {
+			if (data[v.heapIndex] != v) throw "Invalid state";
+
+			trickle (v.heapIndex);
+		} else {
+			push (v);
+		}
 	}
 
 	function trickle (index : Int) {
@@ -62,6 +77,7 @@ class PriorityQueue<T:HasF> {
 		if (nextElementIndex == 1) return null;
 
 		var toReturn = data[1];
+		toReturn.heapIndex = -1;
 
 		var index = 1;
 

@@ -13,6 +13,8 @@ class Test {
 }
 
 class Screeps {
+	static var disableSpawns = false;
+
 	static public function main():Void {
 
 		haxe.Timer.measure (function () { 
@@ -47,11 +49,13 @@ class Screeps {
 			IDManager.manager.tick();
 			
 			//haxe.Timer.measure (function () { 
+			if (!disableSpawns) {
 				for (spawn in IDManager.spawns) {
 					if (spawn.src.my) {
 						spawn.tick();
 					}
 				}
+			}
 			//}, {methodName:null, lineNumber: 0, fileName: "Spawns", className: null});
 
 			//var times : Array<Float> = [0,0,0,0,0,0,0,0,0];

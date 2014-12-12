@@ -57,10 +57,18 @@ class AIConstructionManager extends Base {
 		}
 
 		var alreadyBuiltScore = -extensions*10;
-		var constructionSiteScore = -IDManager.constructionSites.length*30;
+		var constructionSiteScore = 0.0;
+		for (site in IDManager.constructionSites) {
+			switch(site.src.structureType) {
+				case Road: constructionSiteScore -= 2;
+				case Spawn: constructionSiteScore -= 15;
+				case Extension: constructionSiteScore -= 12;
+				default: constructionSiteScore -= 10;
+			}
+		}
 
 		// We start with lots of energy, to avoid building extensions at the start, do this
-		var earlyScore = Game.time < 100 ? -5 : 0;
+		var earlyScore = Game.time < 200 ? -5 : 0;
 
 		
 		var latentEnergyScore = (Math.max (latentEnergy-300, 0)/150);

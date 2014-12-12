@@ -11,6 +11,8 @@ class AIManager {
 	public var constructionManager : AIConstructionManager;
 	public var pathfinder : AIPathfinder;
 
+	public var workerPaths : Array<WorkerPath>;
+
 	public function new () {}
 
 	public function tick () {
@@ -26,6 +28,7 @@ class AIManager {
 
 		numRegroupingPoints = Std.int (friendlyMilitary / 15)+1;
 
+
 		var room = switch (Game.getRoomByName("1-1")) {
 			case Some(room): room;
 			case None: throw "Could not find room";
@@ -33,10 +36,29 @@ class AIManager {
 
 		for (ent in room.find(DroppedEnergy)) {
 			var energy : Energy = cast ent;
-			carrierNeeded += 0.01 * Math.max (energy.energy - 100,0) / getRoleCount(Harvester);
+			carrierNeeded += 0.01 * Math.max (energy.energy - 100,0) / getRoleCount(EnergyCarrier);
 		}
+
+		pathfinder.tick();
 		
-		//pathfinder.tick();
+		if (Game.time % 10 == 8) {
+			for (site in IDManager.constructionSites) {
+				//site.src.remove ();
+			}
+		}
+
+		if (workerPaths == null || workerPaths.length == 0) {
+			if (workerPaths != null) for (path in workerPaths) path.destroy ();
+
+			workerPaths = new Array<WorkerPath>();
+			var infos = AICollectorPoints.fromSource (cast room.find(Sources));
+			for (info in infos) {
+				var workerPath = new WorkerPath().configure(info);
+				workerPaths.push(workerPath);
+			}
+		}
+
+		
 		map.tick();
 		constructionManager.tick ();
 

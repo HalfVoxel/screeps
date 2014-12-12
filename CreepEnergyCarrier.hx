@@ -1,10 +1,24 @@
 using Math;
 using SCExtenders;
 import Utils.*;
+using hxmath.math.IntVector2;
+
+@:enum
+abstract ReturningEnum(Int) {
+	var Returning = 0;
+	var AutoReturning = 1;
+	var Collecting = 2;
+	var AutoCollecting = 3;
+}
 
 class CreepEnergyCarrier extends AICreep {
 
 	var harvesterTarget : AICreep;
+
+	var currentPath : WorkerPath;
+	var returning : CreepEnergyCarrier.ReturningEnum = AutoCollecting;
+
+	var energyDelta = 0;
 
 	public override function configure () {
 		initialize (false);
@@ -15,8 +29,25 @@ class CreepEnergyCarrier extends AICreep {
 		return a + (b-a)*t;
 	}
 
-	public override function tick () {
+	public override function earlyTick () {
+		energyDelta = 0;
+	}
 
+	public override function tick () {
+		energyCarrier (0);
+	}
+
+	public function assignToPath ( path : WorkerPath ) {
+		if (path == currentPath) return;
+
+		if (currentPath != null) currentPath.assigned.remove (this);
+		if (path != null) path.assigned.push (this);
+		currentPath = path;
+
+		returning = AutoCollecting;
+	}
+
+	public function energyCarrier ( iteration : Int ) {
 		var bestHarvester = null;
 
 		var actionTaken = false;
@@ -25,9 +56,62 @@ class CreepEnergyCarrier extends AICreep {
 
 		droppedEnergy = cast src.room.find(DroppedEnergy);
 
-		if ( src.energy < src.energyCapacity*0.9 ) {
-			
+		// Variation and block remover
+		if (Game.time % 80 == 0) currentPath = null;
+
+		if (src.energy < src.energyCapacity) {
+
+			var bestTransferFrom = null;
+			var largestEnergyAmount = 0;
+
+			for (ent in droppedEnergy) {
+				if (src.pos.isNearTo(ent.pos)) {
+					var energy : Energy = cast ent;
+					
+					if (energy.energy > largestEnergyAmount) {
+						bestTransferFrom = energy;
+						largestEnergyAmount = energy.energy;
+					}
+				}
+			}
+
+			if (bestTransferFrom != null) {
+				trace ("Picking up " + largestEnergyAmount);
+				src.pickup (bestTransferFrom);
+			}
+		}
+
+		if (currentPath == null) {
+			var bestEnergy = 0.0;
+
+			for (path in manager.workerPaths) {
+				if (currentPath == null || path.nearbyEnergy () > bestEnergy) {
+					
+					var next = path.next (new IntVector2(src.pos.x,src.pos.y), true);
+
+					if (next == null) {
+						// We happened to be at the endpoint
+						assignToPath(path);
+						bestEnergy = path.nearbyEnergy ();
+					} else {
+						var pathto = src.pos.findPathTo (next.x,next.y);
+						if (pathto.length != 0 && pathto[pathto.length-1].x == next.x && pathto[pathto.length-1].y == next.y) {
+							assignToPath(path);
+
+							bestEnergy = path.nearbyEnergy ();
+						}
+					}
+				}
+			}
+		}
+
+		if (currentPath == null) return;
+
+		if ( src.energy+energyDelta < src.energyCapacity*1.0 ) {
+
 			var bestScore = -10000.0;
+
+			if (returning != Returning && returning != Collecting) returning = AutoCollecting;
 
 			/*for (creep in IDManager.creeps) {
 				if (creep.role == Harvester) {
@@ -96,7 +180,7 @@ class CreepEnergyCarrier extends AICreep {
 				}
 			}*/
 
-			var bestEnergy : Energy = null;
+			/*var bestEnergy : Energy = null;
 			var bestEnergyScore = -100000;
 			var keepMultiplier = 1.0;
 
@@ -130,9 +214,100 @@ class CreepEnergyCarrier extends AICreep {
 				var energy : AIEnergy = IDManager.from (bestEnergy);
 				
 				energy.assign(this, bestEnergyScore);
+			}*/
+		} else {
+			if (returning != Returning) returning = AutoReturning;
+		}
+
+		if (src.energy+energyDelta > 0) {
+			var transferDone = false;
+
+			for (ent in src.room.find(MyStructures)) {
+				var ext : Structure = cast ent;
+				if (ext.structureType == Extension && src.pos.isNearTo(ext.pos)) {
+					trace("Transfering to ext..." + src.pos);
+					transferDone = true;
+					src.transferEnergy(ext);
+					src.room.createFlag (src.pos.x,src.pos.y,id+"TX");
+					currentPath = null;
+					energyDelta -= src.energy;
+
+					if (returning != Returning && returning != Collecting) returning = AutoCollecting;
+					break;
+				}
+			}
+
+			if (!transferDone) for (spawn in IDManager.spawns) {
+				if (src.pos.isNearTo(spawn.src.pos)) {
+					trace("Transfering to spawn..." + src.pos);
+					transferDone = true;
+					src.transferEnergy(spawn.src);
+					src.room.createFlag (src.pos.x,src.pos.y,id+"TS");
+					currentPath = null;
+					energyDelta -= src.energy;
+
+					if (returning != Returning && returning != Collecting) returning = AutoCollecting;
+					break;
+				}
+			}
+
+			if (!transferDone) for (creep in IDManager.creeps) {
+				if (creep.my && creep.role == Builder && src.pos.isNearTo(creep.src.pos)) {
+					var amount = Std.int(Math.min(creep.src.energyCapacity-creep.src.energy, src.energy));
+					if ( amount > 0 ) {
+						src.transferEnergy(creep.src, Std.int(Math.min(creep.src.energyCapacity-creep.src.energy, src.energy)));
+
+						if (src.energy - amount == 0) returning = AutoCollecting;
+						break;
+					}
+				}
+				if (currentPath != null && creep.my && creep != this && creep.role == EnergyCarrier && src.pos.isNearTo (creep.src.pos)) {
+					var carrier : CreepEnergyCarrier = cast creep;
+
+					if (carrier.currentPath == null || carrier.currentPath.nodeIndex (new IntVector2 (carrier.src.pos.x,carrier.src.pos.y)) < currentPath.nodeIndex (new IntVector2 (src.pos.x,src.pos.y))) {
+						var amount = Std.int(Math.min(creep.src.energyCapacity-creep.src.energy, src.energy));
+						if ( amount > 0 ) {
+							//trace("Transfering " + amount + " up in chain " + (creep.src.energy + " + " + amount + " = " + (creep.src.energy + amount) + " <= " + creep.src.energyCapacity));
+							src.transferEnergy(creep.src, amount);
+							carrier.energyDelta += amount;
+							carrier.tick ();
+
+							if (src.energy - amount == 0) returning = AutoCollecting;
+							break;
+						}
+					}
+				}
 			}
 		}
 
+		if (currentPath == null) {
+			trace("Retrying...");
+			if (iteration > 0) return;
+
+			energyCarrier (iteration+1); return;
+		}
+
+		var next = currentPath.next (new IntVector2 (src.pos.x,src.pos.y), returning == Collecting || returning == AutoCollecting );
+		if (next == null) {
+			if (currentPath.nodeIndex(new IntVector2 (src.pos.x,src.pos.y)) == 0) {
+				src.room.createFlag (src.pos.x,src.pos.y,id+"<>");
+				assignToPath(null);
+				returning = AutoCollecting;
+				return;
+			} else {
+				returning = Returning;
+			}
+			trace ("reversing " + currentPath.nodeIndex(new IntVector2 (src.pos.x,src.pos.y)));
+
+			next = currentPath.next (new IntVector2 (src.pos.x,src.pos.y), returning == Collecting || returning == AutoCollecting );
+		}
+
+		if (next != null) {
+			//trace("Move to " + next + " from " + src.pos);
+			src.moveTo (next.x, next.y);
+		}
+
+		/*
 		if (src.energy >= src.energyCapacity && currentTarget != null) {
 			currentTarget.unassign (this);
 		}
@@ -155,17 +330,27 @@ class CreepEnergyCarrier extends AICreep {
 					src.moveTo(energy.pos, {heuristicWeight: 1});
 				}
 
-				if ( src.pos.isNearTo(energy.pos) ) {
-					src.pickup(energy);
-					currentTarget.unassign(this);
-				}
+				var highestNear = 0;
+				var highestNearEnergy = null;
 
 				if (droppedEnergy != null) {
 					for (dropped in droppedEnergy) {
 						if (src.pos.isNearTo(dropped.pos)) {
-							src.pickup(cast dropped);
+							if (dropped.energy > highestNear) {
+								highestNearEnergy = dropped;
+								highestNear = dropped.energy;
+							}
+							
 						}
 					}
+				}
+
+				if (highestNearEnergy != null) {
+					src.pickup(highestNearEnergy);
+				}
+
+				if (src.energy >= src.energyCapacity && currentTarget != null) {
+					currentTarget.unassign (this);
 				}
 			}
 			default: throw "Invalid type '" + currentTarget.type +"'";
@@ -174,7 +359,9 @@ class CreepEnergyCarrier extends AICreep {
 			harvesterTarget = bestHarvester;
 
 			src.moveTo (bestHarvester.src.pos, {heuristicWeight: 1});
-		} else if ( src.energy > 0 ) {
+		} else  
+
+		if ( src.energy > 0 ) {
 			harvesterTarget = null;
 
 			var closestExt = null;
@@ -205,22 +392,6 @@ class CreepEnergyCarrier extends AICreep {
 				case None:
 			}
 			if (closestExt != null) {
-				switch (src.moveTo(closestExt, {heuristicWeight: 1})) {
-					case NoPath|NoBodyPart: {
-						// Try to move energy around
-						for (creep in IDManager.creeps) {
-							if (creep.my && (creep.role == Builder || creep.role == EnergyCarrier) && src.pos.isNearTo(creep.src.pos)) {
-
-								var amount = Std.int(Math.min(creep.src.energyCapacity-creep.src.energy, src.energy));
-								if ( amount > 0 ) {
-									src.transferEnergy(creep.src, Std.int(Math.min(creep.src.energyCapacity-creep.src.energy, src.energy)));
-									break;
-								}
-							}
-						}
-					}
-					default:
-				}
 
 				if (src.pos.isNearTo(closestExt.pos)) {
 					var amount = Std.int(Math.min(closestExt.energyCapacity-closestExt.energy, src.energy));
@@ -228,38 +399,34 @@ class CreepEnergyCarrier extends AICreep {
 				}
 			} else {
 				// Try to move energy around
-				for (creep in IDManager.creeps) {
-					if (creep.my && (creep.role == Builder || creep.role == EnergyCarrier) && src.pos.isNearTo(creep.src.pos) && Std.random(5) == 0) {
-						var amount = Std.int(Math.min(creep.src.energyCapacity-creep.src.energy, src.energy));
-						if ( amount > 0 ) {
-							src.transferEnergy(creep.src, amount);
-							break;
-						}
-					}
-				}
+				moveEnergyAroundRandomly ();
 			}
 		} else {
 			if (manager.carrierNeeded > 0) manager.carrierNeeded -= 0.7;
 			src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
-		}
+		}*/
 
-		if (src.energy > 0) {
-			for (spawn in IDManager.spawns) {
-				if (src.pos.isNearTo(spawn.src.pos)) {
-					src.transferEnergy(spawn.src);
-					break;
-				}
-			}
 
-			for (creep in IDManager.creeps) {
-				if (creep.my && creep.role == Builder && src.pos.isNearTo(creep.src.pos)) {
-					var amount = Std.int(Math.min(creep.src.energyCapacity-creep.src.energy, src.energy));
-					if ( amount > 0 ) {
-						src.transferEnergy(creep.src, Std.int(Math.min(creep.src.energyCapacity-creep.src.energy, src.energy)));
-						break;
+	}
+
+	function moveEnergyAroundRandomly () {
+		var randomTarget = null;
+		var tries = 0;
+		var targetAmount= 0;
+		for (creep in IDManager.creeps) {
+			if (creep.my && (creep.role == Builder || creep.role == EnergyCarrier) && src.pos.isNearTo(creep.src.pos)) {
+				var amount = Std.int(Math.min(creep.src.energyCapacity-creep.src.energy, src.energy));
+				if ( amount > 0 ) {
+					tries++;
+					if (Std.random (tries) == 0) {
+						randomTarget = creep;
+						targetAmount = amount;
 					}
 				}
 			}
 		}
+
+		if (randomTarget != null) src.transferEnergy(randomTarget.src, targetAmount);
+
 	}
 }

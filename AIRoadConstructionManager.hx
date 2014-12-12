@@ -22,6 +22,9 @@ class AIRoadConstructionManager extends Base {
 			case None: throw "Could not find room";
 		}
 
+		// We start with lots of energy, to avoid building extensions at the start, do this
+		var earlyScore = Game.time < 100 ? 50 : 0;
+
 		var constructionSiteScore = IDManager.constructionSites.length*10;
 
 		var latentEnergy = 0;
@@ -38,12 +41,12 @@ class AIRoadConstructionManager extends Base {
 		var movementPattern = IDManager.manager.map.movementPatternMapSlow;
 
 
-		var tres = 200 + constructionSiteScore - latentEnergy*0.01;
+		var tres = 200 + earlyScore + constructionSiteScore - latentEnergy*0.01;
 
 		for (y in 0...Room.Height) {
 			for (x in 0...Room.Width) {
 				var v = AIMap.getRoomPos (movementPattern, x, y);
-				roadMap[y*Room.Width + x] += v*0.1;
+				roadMap[y*Room.Width + x] += v*0.01;
 			}
 		}
 
@@ -56,7 +59,7 @@ class AIRoadConstructionManager extends Base {
 				}
 			}
 		}
-		AIMap.decay (roadMap, 0.99);
+		AIMap.decay (roadMap, 0.997);
 
 		var result = new Array<{type: StructureType, pos: {x:Int,y:Int}}> ();
 		for (y in 0...Room.Height) {

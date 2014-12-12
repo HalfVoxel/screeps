@@ -22,9 +22,9 @@ class AISpawn extends Base {
 	static var roleTypes : Array<Array<SpawnType>> = 
 	[
 		[
-		{type: AICreep, role: Harvester, body: [Move,Work,Work,Work], category: Economy, advancedThreshold: 0, amountProportion: 1.4},
-		{type: AICreep, role: Harvester, body: [Move,Work,Work,Work,Work], category: Economy, advancedThreshold: 200, amountProportion: 1.4},
-		{type: AICreep, role: Harvester, body: [Move,Work,Work,Work,Work, Work, Work], category: Economy, advancedThreshold: 300, amountProportion: 1.4}
+		{type: AICreep, role: Harvester, body: [Move,Work,Work,Work], category: Economy, advancedThreshold: 0, amountProportion: 1.1},
+		{type: AICreep, role: Harvester, body: [Move,Work,Work,Work,Work], category: Economy, advancedThreshold: 200, amountProportion: 1.1},
+		{type: AICreep, role: Harvester, body: [Move,Work,Work,Work,Work, Work, Work], category: Economy, advancedThreshold: 300, amountProportion: 1.1}
 		],
 
 		[
@@ -53,7 +53,8 @@ class AISpawn extends Base {
 		],
 
 		[
-		{type: AICreep, role: Builder, body: [Move, Move, Work, Carry, Carry], category: Economy, advancedThreshold: 100, amountProportion: 0.01}
+		{type: AICreep, role: Builder, body: [Move, Move, Work, Carry, Carry], category: Economy, advancedThreshold: 100, amountProportion: 0.01},
+		{type: AICreep, role: Builder, body: [Move, Move, Work, Carry, Carry, Work], category: Economy, advancedThreshold: 200, amountProportion: 0.01}
 		]
 	];
 
@@ -112,9 +113,9 @@ class AISpawn extends Base {
 
 					var score = 0.0;
 
-					var roleCount : Float = manager.getRoleCount(role.role);
+					var roleCount : Float = manager.getOriginalRoleCount(role.role);
 					var totalCount : Float = IDManager.creeps.length;
-					totalCount = totalCount - roleCount + roleCount/role.amountProportion;
+					totalCount = totalCount - roleCount + (roleCount/role.amountProportion);
 					roleCount = roleCount/role.amountProportion;
 
 					score = 1 - (roleCount / totalCount);
@@ -128,11 +129,19 @@ class AISpawn extends Base {
 						score += 1;
 					}
 
+					if (role.role == Harvester && manager.getRoleCount(role.role) < sources*2 && hostileMilitary == 0) {
+						score += 2 * (1/300) * complexityScore;
+					}
+
 					// Too many harvesters
 					if (role.role == Harvester && manager.getRoleCount(role.role) >= sources*4) score *= 0.25;
 
 					if (role.role == EnergyCarrier) {
-						score += manager.carrierNeeded*0.1;// / manager.getRoleCount(Harvester);
+						score += manager.carrierNeeded*0.08;// / manager.getRoleCount(Harvester);
+					}
+
+					if (role.role == EnergyCarrier && manager.getRoleCount(EnergyCarrier) == 0 && hostileMilitary == 0) {
+						score += 0.5;
 					}
 
 					if (role.role == EnergyCarrier && manager.getRoleCount(EnergyCarrier)*2 >= manager.getRoleCount(Harvester)) {
@@ -140,7 +149,7 @@ class AISpawn extends Base {
 					}
 
 					if (role.role == Builder) {
-						score += 0.0001*energyNeededForConstruction / (manager.getOriginalRoleCount(Builder)+1);
+						score += 0.0005*energyNeededForConstruction / (manager.getOriginalRoleCount(Builder)+1);
 					}
 
 					if (score > bestRoleScore) {

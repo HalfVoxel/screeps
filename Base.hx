@@ -27,9 +27,15 @@ class Base implements Ref.HasID {
 	public function onCreated () {}
 	public function onDestroyed () {}
 
+	public function earlyTick () {}
+	
 	public static function instantiate<T:Base> (type : Class<T>) : T {
 		var v = Type.createInstance (type, []);
 		v.initialize(false);
 		return v;
+	}
+
+	public function destroy () {
+		IDManager.destroy (this);
 	}
 }

@@ -3,6 +3,9 @@ class AIConstructionSite extends AIAssigned {
 	public var src(get, null) : ConstructionSite;
 	inline function get_src() return cast linked;
 
+	var lastProgress : Int;
+	var previousProgress : Int;
+
 	public function new () {
 		super();
 	}
@@ -13,6 +16,22 @@ class AIConstructionSite extends AIAssigned {
 	}
 
 	public override function tick () {
+
+		if (previousProgress > src.progress) {
+			lastProgress = Game.time;
+		}
+		previousProgress = src.progress;
+		
+		if (Std.int ((Game.time - lastProgress)/50) % 2 == 1 ) {
+			// Probably stuck
+			trace("Builders probably stuck");
+			maxAssignedCount = 0;
+			cleanup();
+			for (creep in assigned) {
+				unassign(creep);
+			}
+			return;
+		}
 
 		maxAssignedCount = switch (src.structureType) {
 			case Spawn: Std.int (Math.min ((manager.getRoleCount(Harvester)+manager.getRoleCount(Builder))/2, 6));
@@ -41,8 +60,12 @@ class AIConstructionSite extends AIAssigned {
 					else if (creep.currentTarget != null && creep.currentTarget.type == AIConstructionSite) continue;
 
 					if (score > bestScore) {
-						best = creep;
-						bestScore = score;
+
+						var path = creep.src.pos.findPathTo (src.pos);
+						if (path.length != 0 && src.pos.isNearTo (cast path[path.length-1])) {
+							best = creep;
+							bestScore = score;
+						}
 					}
 				}
 			}

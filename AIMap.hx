@@ -104,6 +104,48 @@ class AIMap extends Base {
 	public static var dx = [1, 1, 0, -1, -1, -1, 0, 1];
 	public static var dy = [0, 1, 1, 1, 0, -1, -1, -1];
 
+	public static function mask (map : Array<Float>, mask : Array<Float> ) {
+		for (i in 0...map.length) {
+			map[i] = mask[i] > 0 ? map[i] : 0;
+		}
+	}
+
+	public static function smoothCross (map : Array<Float>, iterations : Int ) {
+		// Copy
+
+		//if (iterations % 2 != 0) throw "Must smooth with an even number of iterations";
+
+		var map1 = map;
+		var map2 = tmpMap;
+
+		var size : Int = Std.int(Math.sqrt(map.length));
+
+		for (it in 0...iterations) {
+
+			for (y in 1...size-1) {
+				for (x in 1...size-1) {
+					var v = 0.0;
+
+					for (i in 0...4 ) {
+						v += map1[(y+dy[i])*size + x+dx[i]];
+					}
+
+					map2[y*size + x] = v/4;
+				}
+			}
+
+			// Swap
+			var tmp = map1;
+			map1 = map2;
+			map2 = tmp;
+		}
+
+		if (iterations % 2 == 0) {
+			zero(map);
+			addMap(map, map2, 1);
+		}
+	}
+
 	public static function smooth (map : Array<Float>, iterations : Int ) {
 		// Copy
 
@@ -281,6 +323,9 @@ class AIMap extends Base {
 					if (item.type == Terrain) {
 						if (item.terrain == Wall) {
 							score = -1;
+
+							// Nuff said
+							break;
 						}
 						if (item.terrain == Swamp) {
 							score += 2;
@@ -295,7 +340,7 @@ class AIMap extends Base {
 		return map;
 	}
 
-	public function zero ( map : Array<Float> ) {
+	public static function zero ( map : Array<Float> ) {
 		for ( i in 0...map.length ) {
 			map[i] = 0;
 		}
@@ -514,16 +559,16 @@ class AIMap extends Base {
 		var map = createMap(MapSize);
 
 		for (spawn in IDManager.spawns) {
-			addDeltaRoomPos (map,spawn.src.pos.x,spawn.src.pos.y, -30000);
+			addDeltaRoomPos (map,spawn.src.pos.x,spawn.src.pos.y, -40000);
 		}
-		smooth(map, 5);
+		smooth(map, 8);
 		for (spawn in IDManager.spawns) {
-			addDeltaRoomPos (map,spawn.src.pos.x,spawn.src.pos.y, 4000);
+			addDeltaRoomPos (map,spawn.src.pos.x,spawn.src.pos.y, 40000);
 		}
-		smooth(map, 4);
+		smooth(map, 6);
 
 
-		var map2 = createMap(MapSize);		
+		var map2 = createMap(MapSize);
 		
 		addMap(map2, movementPatternMap, 2);
 
@@ -555,6 +600,33 @@ class AIMap extends Base {
 		for (structure in IDManager.constructionSites) {
 			addDeltaRoomPos (map,structure.src.pos.x,structure.src.pos.y, 10000);
 		}
+
+		zero(map2);
+
+		var room = switch (Game.getRoomByName("1-1")) {
+			case Some(room): room;
+			case None: throw "Could not find room";
+		}
+
+		for (ent in room.find(Sources)) {
+			addDeltaRoomPos (map2, ent.pos.x, ent.pos.y, -100);
+		}
+
+		for (workerPath in IDManager.manager.workerPaths) {
+			for (node in workerPath.path) {
+				addDeltaRoomPos (map2, node.x, node.y, 10);
+			}
+		}
+
+		smoothCross(map2, 1);
+
+		for (workerPath in IDManager.manager.workerPaths) {
+			for (node in workerPath.path) {
+				setRoomPos (map2, node.x, node.y, 0);
+			}
+		}
+
+		mask(map, map2);
 
 		buildLocMap = map;
 		var mn = findmin(map);

@@ -18,6 +18,8 @@ class AICreep extends Base {
 	static var dx = [1, 1, 0, -1, -1, -1, 0, 1];
 	static var dy = [0, 1, 1, 1, 0, -1, -1, -1];
 
+	var buildObstructed = 0;
+
 	public function configure () {
 
 		// Creeps are spawned, so they need to be put in a queue first, therefore to not register it
@@ -52,6 +54,15 @@ class AICreep extends Base {
 
 		var near = src.pos.isNearTo (currentTarget.linked.pos);
 
+		if (buildObstructed > 5) {
+			if (currentTarget != null) {
+				currentTarget.unassign (this);
+				role = Harvester;
+				harvester ();
+				return;
+			}
+		}
+
 		if (src.energy < src.energyCapacity && (!near || src.energy == 0)) {
 
 			switch(src.pos.findClosestFriendlySpawn ()) {
@@ -68,42 +79,55 @@ class AICreep extends Base {
 				case None: harvester ();
 			}
 		} else if (!near) {
+			var path = src.pos.findPathTo (currentTarget.linked.pos);
+			if (path.length == 0 || !currentTarget.linked.pos.isNearTo (cast path[path.length-1])) {
+				currentTarget.unassign (this);
+				builder ();
+				return;
+			}
 			src.moveTo (currentTarget.linked, {heuristicWeight: 1});
 		} else {
 			var constructionSite : AIConstructionSite = cast currentTarget;
-			src.build (constructionSite.src);
+			switch (src.build (constructionSite.src)) {
+				case InvalidTarget: buildObstructed++;
+				default: buildObstructed--;
+			}
 		}
 	}
 
 	function harvester () {
 
 		// Recalculate source
-		if (targetSource != null && targetSource.energy == 0) targetSource = null;
+		//if (targetSource != null && targetSource.energy == 0) targetSource = null;
 
 		var source = targetSource;
 		if ( source == null || Game.time % 6 == id % 6 ) {
 
-			targetSource = switch(src.pos.findClosestActiveSource ({heuristicWeight: 1})) {
-				case Some(closest): {
-					var path = src.pos.findPathTo(closest.pos, {heuristicWeight: 1});
-					if (path.length != 0 && (source == null || (source.energy == 0 && 4*path.length < source.ticksToRegeneration))) {
-						closest;
-					} else {
-						if (path.length == 0) {
-							trace("....");
-						}
-						source;
-						//trace("... " + path.length);
-					}
-				}
-				case None: {
-					trace("Found no source!!");
-					source;
+			var pathToSource = source != null ? src.pos.findPathTo(source.pos, {heuristicWeight: 1}) : [];
+			var earliestEnergyGather = source != null && pathToSource.length != 0 ? Math.max (4*pathToSource.length, source.energy > 0 ? 0 : source.ticksToRegeneration) : 1000;
+
+			if (src.id == "id11418155875539" ) trace("@" + src.pos + " " + src.id);
+			//targetSource = switch(src.pos.findClosestActiveSource ({heuristicWeight: 1})) {
+			for (ent in src.room.find(Sources)) {
+				var otherSource : Source = cast ent;
+
+				var path = src.pos.findPathTo(otherSource.pos, {heuristicWeight: 1});
+
+				var newEarliestEnergyGather = path.length != 0 ? Math.max (4*path.length, otherSource.energy > 30 ? 0 : otherSource.ticksToRegeneration) : 1000;
+
+				if (src.id == "id11418155875539" ) trace(earliestEnergyGather + " " + newEarliestEnergyGather + " " + otherSource.pos + " " + path.length + " " + pathToSource.length);
+
+				var actuallyNear = otherSource.pos.isNearTo (cast path[path.length-1]);
+				if (path.length != 0 && actuallyNear && newEarliestEnergyGather < earliestEnergyGather) {
+					source = otherSource;
+					earliestEnergyGather = newEarliestEnergyGather;
 				}
 			}
 
-			//targetSource = best;
+			targetSource = source;
 		}
+
+		//if (src.id == "id11418155875539" ) return;
 
 		if (src.energy == src.energyCapacity) {
 			//manager.carrierNeeded += 2;
@@ -124,7 +148,10 @@ class AICreep extends Base {
 				}
 			}
 
-		}// else {
+		} else {
+			src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
+		}
+		// else {
 
 			/*var bestCarrier = null;
 

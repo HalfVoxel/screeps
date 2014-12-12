@@ -145,6 +145,10 @@ class IDManager {
 			}
 		}
 
+		for (ob in loadedObjects) {
+			ob.earlyTick ();
+		}
+
 		//trace ("Loaded " + spawns.length + " " + creeps.length);
 	}
 
@@ -266,12 +270,13 @@ class IDManager {
 	}
 
 	public static function queueAddCreep (name : String, creep : AICreep) {
+		Memory[name+"_id"] = creep.id;
 		trace ("Queing " + creep.id);
 		creepQueue[name] = copyFields (creep, {});
 	}
 
 	public static function addLink (obj1 : Entity, obj2 : Base) {
-		trace("Added link between " + obj1.id + " " + obj2.id);
+		//trace("Added link between " + obj1.id + " " + obj2.id);
 
 		var linkedEntity : Entity = obj2.linked;
 		if (linkedEntity != null) throw "The Base object needs to be specifically created for the specified Entity.";
@@ -282,6 +287,10 @@ class IDManager {
 		
 		var owned : OwnedEntity = cast obj1;
 		obj2.my = owned.my != null ? owned.my : false;
+	}
+
+	public static function destroy (obj : Base) {
+		loadedObjects.remove(obj);
 	}
 
 	public static inline function bySCID (id : String) {

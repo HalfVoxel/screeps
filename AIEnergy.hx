@@ -5,6 +5,7 @@ class AIEnergy extends AIAssigned {
 
 	public var prev : Int;
 	public var queuePts : Array<{x:Int, y:Int}>;
+	public var lastNegativeDelta = 0;
 
 	public override function tick () {
 		var delta;
@@ -12,9 +13,26 @@ class AIEnergy extends AIAssigned {
 			delta = src.energy - prev;
 		} else {
 			delta = 0;
+			lastNegativeDelta = Game.time;
 		}
+
 		prev = src.energy;
-		this.maxAssignedCount = Math.ceil ((src.energy+delta*10) / 90);
+
+		if (Std.int ((Game.time - lastNegativeDelta)/50) % 2 == 1 ) {
+			// Units are probably stuck
+			// Shift to not allowing any units to be assigned to this energy unit for a while
+			this.maxAssignedCount = 0;
+			trace ("Units are probably stuck");
+
+			if (IDManager.spawns.length > 0) {
+				var path = src.pos.findPathTo (IDManager.spawns[0].src.pos);
+				if (path.length != 0 && IDManager.spawns[0].src.pos.isNearTo (cast path[path.length-1])) {
+					lastNegativeDelta = Game.time;
+				}
+			}
+		} else {
+			this.maxAssignedCount = Math.ceil ((src.energy+delta*10) / 90);
+		}
 	}
 
 	public function getQueuePoint ( index : Int ) : {x:Int,y:Int} {
@@ -42,7 +60,7 @@ class AIEnergy extends AIAssigned {
 
 		var terrain = IDManager.manager.map.getTerrainMap();
 
-		var result = AICollectorPoints.findUntil (new AICollectorPoints.Point (src.pos.x, src.pos.y, 0), terrain, function (v : AICollectorPoints.Point) {
+		var result = AICollectorPoints.findUntil ([new AICollectorPoints.Point (src.pos.x, src.pos.y, 0)], terrain, function (v : AICollectorPoints.Point) {
 			return AIMap.getRoomPos (map,v.x,v.y) == 0;
 		}, 5);
 
@@ -58,5 +76,6 @@ class AIEnergy extends AIAssigned {
 
 	public function configure () {
 		initialize ();
+		lastNegativeDelta = Game.time;
 	}
 }
