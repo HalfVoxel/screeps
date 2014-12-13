@@ -15,7 +15,7 @@ class CreepEnergyCarrier extends AICreep {
 
 	var harvesterTarget : AICreep;
 
-	var currentPath : WorkerPath;
+	public var currentPath : WorkerPath;
 	var returning : CreepEnergyCarrier.ReturningEnum = AutoCollecting;
 
 	var energyDelta = 0;
@@ -41,7 +41,7 @@ class CreepEnergyCarrier extends AICreep {
 		if (path == currentPath) return;
 
 		if (currentPath != null) currentPath.assigned.remove (this);
-		if (path != null) path.assigned.push (this);
+		if (path != null && path.assigned.indexOf(this) == -1) path.assigned.push (this);
 		currentPath = path;
 
 		returning = AutoCollecting;
@@ -85,27 +85,31 @@ class CreepEnergyCarrier extends AICreep {
 			var bestEnergy = 0.0;
 
 			for (path in manager.workerPaths) {
-				if (currentPath == null || path.nearbyEnergy () > bestEnergy) {
+				var nearbyEnergy = path.nearbyEnergy ();
+				if ((currentPath == null || nearbyEnergy > bestEnergy) && nearbyEnergy > 0) {
 					
 					var next = path.next (new IntVector2(src.pos.x,src.pos.y), true);
 
 					if (next == null) {
 						// We happened to be at the endpoint
 						assignToPath(path);
-						bestEnergy = path.nearbyEnergy ();
+						bestEnergy = nearbyEnergy;
 					} else {
 						var pathto = src.pos.findPathTo (next.x,next.y);
 						if (pathto.length != 0 && pathto[pathto.length-1].x == next.x && pathto[pathto.length-1].y == next.y) {
 							assignToPath(path);
 
-							bestEnergy = path.nearbyEnergy ();
+							bestEnergy = nearbyEnergy;
 						}
 					}
 				}
 			}
 		}
 
-		if (currentPath == null) return;
+		if (currentPath == null) {
+			src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
+			return;
+		}
 
 		if ( src.energy+energyDelta < src.energyCapacity*1.0 ) {
 
@@ -222,24 +226,37 @@ class CreepEnergyCarrier extends AICreep {
 		if (src.energy+energyDelta > 0) {
 			var transferDone = false;
 
+			var bestTransferTarget = null;
+			var bestTransferAmount = 0;
+
 			for (ent in src.room.find(MyStructures)) {
 				var ext : Structure = cast ent;
 				if (ext.structureType == Extension && src.pos.isNearTo(ext.pos)) {
-					trace("Transfering to ext..." + src.pos);
-					transferDone = true;
-					src.transferEnergy(ext);
-					src.room.createFlag (src.pos.x,src.pos.y,id+"TX");
-					currentPath = null;
-					energyDelta -= src.energy;
 
-					if (returning != Returning && returning != Collecting) returning = AutoCollecting;
-					break;
+					var amount = Std.int(Math.min(ext.energyCapacity-ext.energy, src.energy));
+					if ( amount > bestTransferAmount ) {
+						bestTransferAmount = amount;
+						bestTransferTarget = ext;
+					}
 				}
+			}
+
+			if (bestTransferTarget != null) {
+
+				var amount = Std.int(Math.min(bestTransferTarget.energyCapacity-bestTransferTarget.energy, src.energy));
+				trace("Transfering to ext..." + src.pos);
+				transferDone = true;
+				src.transferEnergy(bestTransferTarget);
+				src.room.createFlag (src.pos.x,src.pos.y,id+"TX");
+				currentPath = null;
+				energyDelta -= amount;
+
+				if (returning != Returning && returning != Collecting) returning = AutoCollecting;
 			}
 
 			if (!transferDone) for (spawn in IDManager.spawns) {
 				if (src.pos.isNearTo(spawn.src.pos)) {
-					trace("Transfering to spawn..." + src.pos);
+					//trace("Transfering to spawn..." + src.pos);
 					transferDone = true;
 					src.transferEnergy(spawn.src);
 					src.room.createFlag (src.pos.x,src.pos.y,id+"TS");

@@ -53,8 +53,8 @@ class AISpawn extends Base {
 		],
 
 		[
-		{type: AICreep, role: Builder, body: [Move, Move, Work, Carry, Carry], category: Economy, advancedThreshold: 100, amountProportion: 0.01},
-		{type: AICreep, role: Builder, body: [Move, Move, Work, Carry, Carry, Work], category: Economy, advancedThreshold: 200, amountProportion: 0.01}
+		{type: AICreep, role: Builder, body: [Move, Work, Work, Carry, Move], category: Economy, advancedThreshold: 100, amountProportion: 0.01},
+		{type: AICreep, role: Builder, body: [Move, Work, Carry, Move, Work, Carry], category: Economy, advancedThreshold: 0, amountProportion: 0.01}
 		]
 	];
 
@@ -99,6 +99,8 @@ class AISpawn extends Base {
 			energyNeededForConstruction += site.src.progressTotal - site.src.progress;
 		}
 
+		var militaryTimeScore = Game.time/3000;
+
 		trace ("Spawning");
 		trace("Complexity score: " + complexityScore + " mx: " + maxBodyPartCount);
 
@@ -123,6 +125,10 @@ class AISpawn extends Base {
 					if (hostileMilitary >= friendlyMilitary && hostileMilitary > 0 && role.category == Military) {
 						score += 5;
 						score *= 2;
+					}
+
+					if (role.category == Military) {
+						score += militaryTimeScore;
 					}
 
 					if (role.role == Harvester && manager.getRoleCount(role.role) < 2) {

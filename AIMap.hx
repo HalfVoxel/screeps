@@ -24,9 +24,7 @@ class AIMap extends Base {
 	public function getTerrainMap () {
 		switch (Game.getRoomByName("1-1")) {
 			case Some(room): {
-				haxe.Timer.measure(function () {
-					if (terrainMap == null) terrainMap = generateTerrainMap (room);
-				},{methodName:null, lineNumber: 0, fileName: "TerrainMap", className: null});
+				if (terrainMap == null) terrainMap = generateTerrainMap (room);
 			}
 			case None: throw "Could not find room";
 		}
@@ -140,9 +138,9 @@ class AIMap extends Base {
 			map2 = tmp;
 		}
 
-		if (iterations % 2 == 0) {
-			zero(map);
-			addMap(map, map2, 1);
+		if (iterations % 2 == 1) {
+			zero(map2);
+			addMap(map2, map1, 1);
 		}
 	}
 
@@ -565,7 +563,13 @@ class AIMap extends Base {
 		for (spawn in IDManager.spawns) {
 			addDeltaRoomPos (map,spawn.src.pos.x,spawn.src.pos.y, 40000);
 		}
-		smooth(map, 6);
+		smooth(map, 3);
+		
+		// Kinda avoid existing structures
+		for (structure in Game.structures) {
+			addDeltaRoomPos (map,structure.pos.x,structure.pos.y, 4000);
+		}
+		smooth(map, 3);
 
 
 		var map2 = createMap(MapSize);
@@ -608,8 +612,8 @@ class AIMap extends Base {
 			case None: throw "Could not find room";
 		}
 
-		for (ent in room.find(Sources)) {
-			addDeltaRoomPos (map2, ent.pos.x, ent.pos.y, -100);
+		for (source in IDManager.sources) {
+			addDeltaRoomPos (map2, source.src.pos.x, source.src.pos.y, -1000);
 		}
 
 		for (workerPath in IDManager.manager.workerPaths) {

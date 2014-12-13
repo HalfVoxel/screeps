@@ -15,4 +15,5 @@ abstract TypeLookup(String) to String {
 	var AICollectorPoints = "AICollectorPoints";
 	var AIRoadConstructionManager = "AIRoadConstructionManager";
 	var WorkerPath = "WorkerPath";
+	var AISource = "AISource";
 }

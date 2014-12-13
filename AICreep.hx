@@ -7,7 +7,6 @@ class AICreep extends Base {
 	public var src(get, null) : Creep;
 	inline function get_src() return cast linked;
 
-	var targetSource : Source;
 	public var role : AIManager.Role;
 	public var originalRole : AIManager.Role;
 	
@@ -45,6 +44,9 @@ class AICreep extends Base {
 		}
 	}
 
+	static var near1x = [0, 1, 1, 0, -1, -1, -1, 0, 1];
+	static var near1y = [0, 0, 1, 1, 1, 0, -1, -1, -1];
+
 	function builder () {
 		if (currentTarget == null) {
 			role = Harvester;
@@ -52,13 +54,65 @@ class AICreep extends Base {
 			return;
 		}
 
-		var near = src.pos.isNearTo (currentTarget.linked.pos);
+
+		var bestLocScore = -10000.0;
+		var bestLoc : RoomPosition = null;
+		var assignedIndex = currentTarget.assigned.indexOf(this);
+
+		var options = new Array<{score:Float, loc:RoomPosition}>();
+
+		for (i in 0...AIMap.dx.length) {
+			var nx = currentTarget.linked.pos.x + AIMap.dx[i];
+			var ny = currentTarget.linked.pos.y + AIMap.dy[i];
+
+			if (AIMap.getRoomPos(manager.map.getTerrainMap(), nx, ny) == -1) continue;
+
+			var movementNearThis = 0.0;
+			var movementOnThis = AIMap.getRoomPos (manager.map.movementPatternMap, nx, ny);
+
+			for (j in 0...AIMap.dx.length) {
+				var nx2 = nx + AIMap.dx[j];
+				var ny2 = ny + AIMap.dy[j];
+
+				movementNearThis += AIMap.getRoomPos (manager.map.movementPatternMap, nx2, ny2);
+			}
+
+			var invalid = false;
+			for (ent in IDManager.structures) {
+				if (ent.pos.x == nx && ent.pos.y == ny) {
+					invalid = true;
+					break;
+				}
+			}
+			for (ent in IDManager.constructionSites) {
+				if (ent.src.pos.x == nx && ent.src.pos.y == ny) {
+					movementOnThis += 100;
+				}	
+			}
+
+			if (!invalid) {
+				var score = (movementNearThis/8) - 3*movementOnThis;
+				options.push ({ score : score, loc :  src.room.getPositionAt(nx, ny)} );
+			}
+		}
+
+		trace(assignedIndex + " " + options.length);
+		options.sort ( function (a, b) { return a.score < b.score ? 1 : (a.score == b.score ? -1 : 0); });
+
+		bestLoc = options[Std.int(Math.max (0, Math.min(assignedIndex, options.length-1)))].loc;
+
+		src.room.createFlag(currentTarget.linked.pos.x,currentTarget.linked.pos.y,"P");
+
+		src.room.createFlag(bestLoc.x,bestLoc.y,"TG");
+
+		var near = src.pos.x == bestLoc.x && src.pos.y == bestLoc.y;//isNearTo (currentTarget.linked.pos);
 
 		if (buildObstructed > 5) {
 			if (currentTarget != null) {
 				currentTarget.unassign (this);
 				role = Harvester;
 				harvester ();
+				buildObstructed = 0;
 				return;
 			}
 		}
@@ -79,53 +133,61 @@ class AICreep extends Base {
 				case None: harvester ();
 			}
 		} else if (!near) {
-			var path = src.pos.findPathTo (currentTarget.linked.pos);
-			if (path.length == 0 || !currentTarget.linked.pos.isNearTo (cast path[path.length-1])) {
+			var path = src.pos.findPathTo (bestLoc);
+			if (path.length == 0 || !bestLoc.isNearTo (cast path[path.length-1])) {
 				currentTarget.unassign (this);
 				builder ();
 				return;
 			}
-			src.moveTo (currentTarget.linked, {heuristicWeight: 1});
+			src.moveTo (bestLoc, {heuristicWeight: 1});
 		} else {
 			var constructionSite : AIConstructionSite = cast currentTarget;
 			switch (src.build (constructionSite.src)) {
 				case InvalidTarget: buildObstructed++;
-				default: buildObstructed--;
+				default: buildObstructed = Std.int(Math.max(buildObstructed-1, 0));
 			}
 		}
 	}
 
 	function harvester () {
 
+		var targetSource : AISource = cast currentTarget;
+
 		// Recalculate source
 		//if (targetSource != null && targetSource.energy == 0) targetSource = null;
 
-		var source = targetSource;
-		if ( source == null || Game.time % 6 == id % 6 ) {
+		if ( targetSource == null || Game.time % 6 == id % 6 ) {
+			var source = targetSource;
 
-			var pathToSource = source != null ? src.pos.findPathTo(source.pos, {heuristicWeight: 1}) : [];
-			var earliestEnergyGather = source != null && pathToSource.length != 0 ? Math.max (4*pathToSource.length, source.energy > 0 ? 0 : source.ticksToRegeneration) : 1000;
+			var pathToSource = source != null ? src.pos.findPathTo(source.src.pos, {heuristicWeight: 1}) : [];
+			var earliestEnergyGather = Game.time +  (source != null && pathToSource.length != 0 ? Game.time +Math.max (4*pathToSource.length, source.src.energy > 0 ? 0 : source.src.ticksToRegeneration) : 1000);
 
 			if (src.id == "id11418155875539" ) trace("@" + src.pos + " " + src.id);
 			//targetSource = switch(src.pos.findClosestActiveSource ({heuristicWeight: 1})) {
-			for (ent in src.room.find(Sources)) {
-				var otherSource : Source = cast ent;
+			for (otherSource in IDManager.sources) {
 
-				var path = src.pos.findPathTo(otherSource.pos, {heuristicWeight: 1});
+				var path = src.pos.findPathTo(otherSource.src.pos, {heuristicWeight: 1});
 
-				var newEarliestEnergyGather = path.length != 0 ? Math.max (4*path.length, otherSource.energy > 30 ? 0 : otherSource.ticksToRegeneration) : 1000;
+				var newEarliestEnergyGather = Game.time + (path.length != 0 ? Math.max (4*path.length, otherSource.src.energy > 30 ? 0 : otherSource.src.ticksToRegeneration) : 1000);
 
-				if (src.id == "id11418155875539" ) trace(earliestEnergyGather + " " + newEarliestEnergyGather + " " + otherSource.pos + " " + path.length + " " + pathToSource.length);
+				if (src.id == "id11418155875539" ) trace(earliestEnergyGather + " " + newEarliestEnergyGather + " " + otherSource.src.pos + " " + path.length + " " + pathToSource.length);
 
-				var actuallyNear = otherSource.pos.isNearTo (cast path[path.length-1]);
-				if (path.length != 0 && actuallyNear && newEarliestEnergyGather < earliestEnergyGather) {
+				var actuallyNear = otherSource.src.pos.isNearTo (cast path[path.length-1]);
+				if (path.length != 0 && actuallyNear && newEarliestEnergyGather < earliestEnergyGather && (targetSource == otherSource || otherSource.betterAssignScore(-newEarliestEnergyGather))) {
 					source = otherSource;
 					earliestEnergyGather = newEarliestEnergyGather;
 				}
 			}
 
-			targetSource = source;
+			if (source != null) {
+				source.assign(this, -earliestEnergyGather);
+			} else if (targetSource != null){
+				targetSource.unassign(this);
+			}
 		}
+
+		// Refresh
+		targetSource = cast currentTarget;
 
 		//if (src.id == "id11418155875539" ) return;
 
@@ -134,10 +196,13 @@ class AICreep extends Base {
 		}
 
 		if (targetSource != null) {
-			if (src.pos.isNearTo(targetSource.pos)) {
-				src.harvest(targetSource);
+			if (src.pos.isNearTo(targetSource.src.pos)) {
+				src.harvest(targetSource.src);
 			} else {
-				src.moveTo (targetSource, {heuristicWeight: 1});
+				switch (src.moveTo (targetSource.src, {heuristicWeight: 1})) {
+					case InvalidTarget|NoPath: buildObstructed++;
+					default: buildObstructed = Std.int(Math.max(buildObstructed-1, 0));
+				}
 			}
 
 			for (creep in IDManager.creeps) {
@@ -146,6 +211,10 @@ class AICreep extends Base {
 						src.transferEnergy(creep.src);
 					}
 				}
+			}
+
+			if (buildObstructed > 5) {
+				targetSource.unassign(this);
 			}
 
 		} else {

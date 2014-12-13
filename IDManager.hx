@@ -8,8 +8,13 @@ class IDManager {
 
 	public static var creeps : Array<AICreep> = new Array<AICreep>();
 	public static var spawns : Array<AISpawn> = new Array<AISpawn>();
+	public static var sources : Array<AISource> = new Array<AISource>();
 	public static var energy : Array<AIEnergy> = new Array<AIEnergy>();
 	public static var constructionSites : Array<AIConstructionSite> = new Array<AIConstructionSite>();
+
+	public static var structures : Array<Structure> = new Array<Structure>();
+
+	
 
 	public static var loadedObjects : Array<Base>;
 
@@ -92,6 +97,7 @@ class IDManager {
 			switch(ent.type) {
 				case AICreep|CreepEnergyCarrier|Healer: if (!destroyed) creeps.push (cast ent);
 				case AISpawn: if (!destroyed) spawns.push (cast ent);
+				case AISource: if (!destroyed) sources.push (cast ent);
 				case AIEnergy: if (!destroyed) energy.push (cast ent);
 				case AIConstructionSite: if(!destroyed) constructionSites.push (cast ent);
 				default:
@@ -138,6 +144,14 @@ class IDManager {
 			}
 		}
 
+		for (obj in room.find(Sources)) {
+			if (objs2ref[obj.id] == null) {
+				addLink(obj, new AISource().configure());
+			}
+		}
+
+		structures = cast room.find(Structures);
+		
 		// Process construction sites and create objects for them if none exists
 		for (obj in room.find(ConstructionSites)) {
 			if (objs2ref[obj.id] == null) {

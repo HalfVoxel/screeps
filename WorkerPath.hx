@@ -19,11 +19,16 @@ class WorkerPath extends Base {
 
 	public var assigned = new Array<CreepEnergyCarrier>();
 
-	function clean () {
-		for (v in assigned) {
-			if (v == null) {
-				assigned.remove(v);
-				clean ();
+	public function clean () {
+
+		if (assigned == null) {
+			assigned = [];
+		}
+
+		for (i in 0...assigned.length) {
+			if (assigned[i] == null || assigned[i].currentPath != this) {
+				assigned.splice (i,1);
+				break;
 			}
 		}
 	}
@@ -46,7 +51,7 @@ class WorkerPath extends Base {
 			}
 		}
 
-		return sum / ((assigned.length+1)*path.length);
+		return sum / (Math.pow (assigned.length+1, 1.5)*path.length);
 	}
 
 	public function nodeIndex ( pos : IntVector2 ) {
@@ -67,6 +72,16 @@ class WorkerPath extends Base {
 			}
 		}
 
-		return path[0];
+		var best = path[0];
+		var bestDist = 1000000;
+		for (i in 0...path.length) {
+			var dist = (path[i].x-pos.x)*(path[i].x-pos.x) + (path[i].y-pos.y)*(path[i].y-pos.y);
+			if (dist < bestDist) {
+				best = path[i];
+				bestDist = dist;
+			}
+		}
+
+		return best;
 	}
 }

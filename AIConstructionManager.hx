@@ -71,7 +71,7 @@ class AIConstructionManager extends Base {
 		var earlyScore = Game.time < 200 ? -5 : 0;
 
 		
-		var latentEnergyScore = (Math.max (latentEnergy-300, 0)/150);
+		var latentEnergyScore = (Math.max (latentEnergy-300, 0)/120);
 
 		trace(dupScore + " " + alreadyBuiltScore + " " + constructionSiteScore + " " + latentEnergyScore + " " + (complexityScore/80) + " " + earlyScore);
 		var extensionScore = dupScore + alreadyBuiltScore + constructionSiteScore + latentEnergyScore + (complexityScore/80) + earlyScore;
@@ -93,9 +93,9 @@ class AIConstructionManager extends Base {
 		var spawns = IDManager.spawns.length;
 		alreadyBuiltScore = -spawns*15;
 
-		var usedResourcesScore = (manager.getRoleCount(Harvester)/3)*3;
+		var usedResourcesScore = (manager.getRoleCount(Harvester)/3)*1;
 
-		var spawnScore = alreadyBuiltScore + constructionSiteScore + latentEnergyScore + (complexityScore/50) + earlyScore + usedResourcesScore;
+		var spawnScore = alreadyBuiltScore + 2*constructionSiteScore + latentEnergyScore + (complexityScore/50) + earlyScore + usedResourcesScore;
 
 		trace ("Spawn Score: " + spawnScore);
 

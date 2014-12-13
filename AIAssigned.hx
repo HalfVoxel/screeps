@@ -37,8 +37,8 @@ class AIAssigned extends Base {
 
 		for (i in 0...assigned.length) {
 			if (assigned[i] == null) {
-				assigned.splice (i,i+1);
-				assignedScores.splice(i,i+1);
+				assigned.splice (i,1);
+				assignedScores.splice(i,1);
 				break;
 			}
 		}
@@ -51,9 +51,12 @@ class AIAssigned extends Base {
 	public function betterAssignScore ( score : Float ) {
 		if ( assigned.length < maxAssignedCount ) return true;
 
+		cleanup ();
+
 		for ( i in 0...assignedScores.length ) {
 			if (assignedScores[i] < score ) return true;
 		}
+
 		return false;
 	}
 
@@ -71,8 +74,8 @@ class AIAssigned extends Base {
 			creep.currentTarget = null;
 
 			var i = assigned.indexOf(creep);
-			assigned.splice (i,i+1);
-			assignedScores.splice(i,i+1);
+			assigned.splice (i,1);
+			assignedScores.splice(i,1);
 		}
 	}
 }

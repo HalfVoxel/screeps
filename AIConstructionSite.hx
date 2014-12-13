@@ -21,7 +21,7 @@ class AIConstructionSite extends AIAssigned {
 			lastProgress = Game.time;
 		}
 		previousProgress = src.progress;
-		
+
 		if (Std.int ((Game.time - lastProgress)/50) % 2 == 1 ) {
 			// Probably stuck
 			trace("Builders probably stuck");
@@ -71,7 +71,6 @@ class AIConstructionSite extends AIAssigned {
 			}
 
 			if (best != null && best.currentTarget != this) {
-				trace("Assigning target " + best.id);
 
 				best.role = Builder;
 				assign(best, bestScore);
