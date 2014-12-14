@@ -41,6 +41,10 @@ class AISpawn extends Base {
 		],
 
 		[
+		{type: AICreep, role: MeleeWall, body: [Tough, Tough, Tough, Move, Attack], category: Military, advancedThreshold: 0, amountProportion: 1},
+		],
+
+		[
 		{type: AICreep, role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack], category: Military, advancedThreshold: 0, amountProportion: 1.4},
 		{type: AICreep, role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack, Move, RangedAttack], category: Military, advancedThreshold: 300, amountProportion: 1.4},
 		],

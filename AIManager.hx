@@ -10,6 +10,7 @@ class AIManager {
 	public var map : AIMap;
 	public var constructionManager : AIConstructionManager;
 	public var pathfinder : AIPathfinder;
+	public var defence : AIDefenceManager;
 
 	public var workerPaths : Array<WorkerPath>;
 
@@ -20,14 +21,17 @@ class AIManager {
 		if (carrierNeeded > 0) carrierNeeded *= 0.95;
 		extensionEnergyNeeded *= 0.9;
 
+		if (defence == null) defence = new AIDefenceManager ().configure ();
+
 		if (constructionManager == null) constructionManager = new AIConstructionManager ().configure ();
 		if (map == null) map = new AIMap().configure();
 		if (pathfinder == null) pathfinder = new AIPathfinder().configure();
 
-		var friendlyMilitary = getRoleCount(MeleeAttacker) + getRoleCount(RangedAttacker) + getRoleCount(Healer);
+		var friendlyMilitary = getRoleCount(MeleeAttacker) + getRoleCount(MeleeWall) + getRoleCount(RangedAttacker) + getRoleCount(Healer);
 
 		numRegroupingPoints = Std.int (friendlyMilitary / 15)+1;
 
+		defence.tick ();
 
 		var room = switch (Game.getRoomByName("1-1")) {
 			case Some(room): room;
@@ -138,4 +142,5 @@ abstract Role(Int) to Int from Int {
 	var EnergyCarrier = 3;
 	var Healer = 4;
 	var Builder = 5;
+	var MeleeWall = 6;
 }

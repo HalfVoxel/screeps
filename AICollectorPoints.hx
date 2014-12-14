@@ -59,7 +59,7 @@ class AICollectorPoints extends Base {
 		}
 
 		connect (nodeResults, true);
-		var components = groupIntoContours (nodeResults);
+		var components = groupIntoComponents (nodeResults, true);
 
 		/*for (res in results) {
 			room.createFlag (res.x, res.y, "P"+idx);
@@ -331,7 +331,7 @@ class AICollectorPoints extends Base {
 			}
 
 			totalPath.remove(totalPath[0]);
-			
+
 			var roots = new Array<IntVector2>();
 			for (comp in innerComps) {
 				roots.push(comp.root);
@@ -409,6 +409,11 @@ class AICollectorPoints extends Base {
 	/** Converts a state to a vec2 */
 	static function state2vec2 (state : AIPathfinder.State) : AIPathfinder.Vec2 {
 		return state;
+	}
+
+	/** Converts a Point to an IntVector2 */
+	public static function point2intvector2 (p : Point) : IntVector2 {
+		return new IntVector2(p.x, p.y);
 	}
 
 	/** Calculates all permutations of the components and gets the cost for that permutation using f, returns the minimum cost and corresponding permutation */
@@ -572,7 +577,7 @@ class AICollectorPoints extends Base {
 			for (i in 0...dx.length) {
 				var nx = node.x + dx[i];
 				var ny = node.y + dy[i];
-				if (seen.exists (ny*Room.Width + nx)) {
+				if (nx >= 0 && ny >= 0 && nx < Room.Width && ny < Room.Height && seen.exists (ny*Room.Width + nx)) {
 					var other = seen[ny*Room.Width + nx];
 					if (!onlySameRoot || other.root == node.root) {
 						node.conns.push (other);
@@ -582,7 +587,7 @@ class AICollectorPoints extends Base {
 		}
 	}
 
-	public static function groupIntoContours ( nodes : Array<CNode> ) {
+	public static function groupIntoComponents ( nodes : Array<CNode>, assume1D : Bool ) {
 		var seen = new Map<CNode,Bool> ();
 
 		var rec = null;
@@ -608,7 +613,7 @@ class AICollectorPoints extends Base {
 				var comp = new Component();
 				comp.nodes = ls;
 
-				comp.nodes = longestPath (comp.nodes);
+				if (assume1D) comp.nodes = longestPath (comp.nodes);
 				comp.root = new IntVector2 (comp.nodes[0].root.x, comp.nodes[0].root.y);
 
 				var mean = new Vector2(0,0);
@@ -620,7 +625,7 @@ class AICollectorPoints extends Base {
 				comp.mean = Vector2.multiplyScalar (1.0/ls.length, mean);
 
 				// Check if the first node can see the last node
-				comp.closed = comp.nodes[0].conns.indexOf(comp.nodes[comp.nodes.length-1]) != -1;
+				if (assume1D) comp.closed = comp.nodes[0].conns.indexOf(comp.nodes[comp.nodes.length-1]) != -1;
 
 				components.push (comp);
 			}
@@ -629,7 +634,9 @@ class AICollectorPoints extends Base {
 		return components;
 	}
 
-	public static function findUntil (sources : Array<Point>, terrain : Array<Float>, threshold : (Point) -> Bool, count : Int) {
+	public static function findUntil (sources : Array<Point>, terrain : Array<Float>, threshold : (Point) -> Bool, count : Int, ?onlyBorder : Bool ) {
+
+		if (onlyBorder == null) onlyBorder = true;
 
 		var dx = AIMap.dx;
 		var dy = AIMap.dy;
@@ -654,6 +661,8 @@ class AICollectorPoints extends Base {
 				if (result.length < count) continue;
 				else break;
 			}
+
+			if (!onlyBorder) result.push(state);
 
 			for (i in 0...dx.length) {
 				var nx = state.x + dx[i];

@@ -6,11 +6,12 @@ class IDManager {
 	private static var id2objs = new Map<Int, Base> ();
 	private static var objs2ref : DynamicObject<Ref<Base>>;
 
-	public static var creeps : Array<AICreep> = new Array<AICreep>();
-	public static var spawns : Array<AISpawn> = new Array<AISpawn>();
-	public static var sources : Array<AISource> = new Array<AISource>();
-	public static var energy : Array<AIEnergy> = new Array<AIEnergy>();
-	public static var constructionSites : Array<AIConstructionSite> = new Array<AIConstructionSite>();
+	public static var creeps 			= new Array<AICreep>();
+	public static var spawns 			= new Array<AISpawn>();
+	public static var defences 			= new Array<AIDefencePosition>();
+	public static var sources 			= new Array<AISource>();
+	public static var energy 			= new Array<AIEnergy>();
+	public static var constructionSites = new Array<AIConstructionSite>();
 
 	public static var structures : Array<Structure> = new Array<Structure>();
 
@@ -94,13 +95,16 @@ class IDManager {
 
 			copyFields (obj, ent);
 
-			switch(ent.type) {
-				case AICreep|CreepEnergyCarrier|Healer: if (!destroyed) creeps.push (cast ent);
-				case AISpawn: if (!destroyed) spawns.push (cast ent);
-				case AISource: if (!destroyed) sources.push (cast ent);
-				case AIEnergy: if (!destroyed) energy.push (cast ent);
-				case AIConstructionSite: if(!destroyed) constructionSites.push (cast ent);
-				default:
+			if (!destroyed) {
+				switch(ent.type) {
+					case AICreep|CreepEnergyCarrier|Healer: creeps.push (cast ent);
+					case AISpawn: spawns.push (cast ent);
+					case AISource: sources.push (cast ent);
+					case AIEnergy: energy.push (cast ent);
+					case AIDefencePosition: defences.push (cast ent);
+					case AIConstructionSite: constructionSites.push (cast ent);
+					default:
+				}
 			}
 
 			if (destroyed) {
@@ -151,7 +155,7 @@ class IDManager {
 		}
 
 		structures = cast room.find(Structures);
-		
+
 		// Process construction sites and create objects for them if none exists
 		for (obj in room.find(ConstructionSites)) {
 			if (objs2ref[obj.id] == null) {

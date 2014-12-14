@@ -108,6 +108,12 @@ class AIMap extends Base {
 		}
 	}
 
+	public static function maskWithReplacement (map : Array<Float>, mask : Array<Float>, replacement : Float ) {
+		for (i in 0...map.length) {
+			map[i] = mask[i] > 0 ? map[i] : replacement;
+		}
+	}
+
 	public static function smoothCross (map : Array<Float>, iterations : Int ) {
 		// Copy
 
@@ -564,7 +570,7 @@ class AIMap extends Base {
 			addDeltaRoomPos (map,spawn.src.pos.x,spawn.src.pos.y, 40000);
 		}
 		smooth(map, 3);
-		
+
 		// Kinda avoid existing structures
 		for (structure in Game.structures) {
 			addDeltaRoomPos (map,structure.pos.x,structure.pos.y, 4000);
@@ -574,7 +580,7 @@ class AIMap extends Base {
 
 		var map2 = createMap(MapSize);
 		
-		addMap(map2, movementPatternMap, 2);
+		addMap(map2, movementPatternMap, -2);
 
 		smooth(map2, 2);
 
@@ -630,7 +636,7 @@ class AIMap extends Base {
 			}
 		}
 
-		mask(map, map2);
+		maskWithReplacement(map, map2, 10000);
 
 		buildLocMap = map;
 		var mn = findmin(map);

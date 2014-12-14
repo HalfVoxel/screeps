@@ -59,7 +59,7 @@ class Healer extends AICreep {
 
 		if (bestTarget == null) {
 			for (creep in IDManager.creeps) {
-				if (creep.role == MeleeAttacker) {
+				if (creep.role == MeleeAttacker || creep.role == MeleeWall) {
 					bestTarget = creep;
 					break;
 				}

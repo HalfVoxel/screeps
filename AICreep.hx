@@ -13,6 +13,7 @@ class AICreep extends Base {
 	public var currentTarget : AIAssigned;
 
 	public var attackTarget : Creep;
+	public var currentDefencePosition : AIDefencePosition;
 
 	static var dx = [1, 1, 0, -1, -1, -1, 0, 1];
 	static var dy = [0, 1, 1, 1, 0, -1, -1, -1];
@@ -37,7 +38,7 @@ class AICreep extends Base {
 	public override function tick () {
 		switch(role) {
 		case Harvester: harvester ();
-		case MeleeAttacker: meleeAttacker ();
+		case MeleeAttacker|MeleeWall: meleeAttacker ();
 		case RangedAttacker: rangedAttacker ();
 		case Builder: builder ();
 		default: throw "Not supported";
@@ -290,7 +291,36 @@ class AICreep extends Base {
 		}*/
 	}
 
+	function assignToDefences () {
+		if (currentDefencePosition != null) return;
+
+		var bestDef = null;
+		var bestScore = 0.0;
+
+		for (defence in IDManager.defences) {
+			var score = defence.assignScore(this);
+			if (score > bestScore) {
+				bestScore = score;
+				bestDef = defence;
+			}
+		}
+
+		if (bestDef != null) bestDef.assign (this);
+	}
+
+	function moveToDefault () {
+
+		if (currentDefencePosition != null) {
+			var target = currentDefencePosition.getTargetPosition (this);
+			src.moveTo (target.x,target.y);
+		} else {
+			src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
+		}
+	}
+
 	function meleeAttacker () {
+
+		assignToDefences ();
 
 		if (attackTarget == null || RoomPosition.squaredDistance (src.pos, attackTarget.pos) < 4*4 || Game.time % 6 == id % 6) {
 			switch(src.pos.findClosestHostileCreep ()) {
@@ -308,11 +338,14 @@ class AICreep extends Base {
 				src.attack(attackTarget);
 			}
 		} else {
-			src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
+			moveToDefault ();
 		}
 	}
 
 	function rangedAttacker () {
+
+		assignToDefences ();
+
 		var targets = src.pos.findInRange (HostileCreeps, 3);
 
 		if (targets.length > 0) {
@@ -411,7 +444,8 @@ class AICreep extends Base {
 			switch (src.pos.findClosestHostileCreep ()) {
 			case Some(target): src.moveTo(target, {heuristicWeight: 1});
 			case None: {
-				src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
+				moveToDefault ();
+				//src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
 			}
 			}
 		}
