@@ -9,12 +9,18 @@ class AIDefencePosition extends Base {
 
 	var assigned = new Array<Array<AICreep>>();
 
+	var spread = new Array<Bool> ();
+
 	public function configure ( meleeLoc : Array<IntVector2>, rangedLoc : Array<IntVector2>, extraLoc : Array<IntVector2>) {
 		initialize ();
 
 		layers.push(meleeLoc);
 		layers.push(rangedLoc);
 		layers.push(extraLoc);
+
+		spread.push(false);
+		spread.push(false);
+		spread.push(false);
 
 		for (i in 0...layers.length) {
 			assigned.push (new Array<AICreep>());
@@ -33,6 +39,22 @@ class AIDefencePosition extends Base {
 		return None;
 	}
 
+	override function tick () {
+		if (manager.defence.timeSinceHostileSeen == 0) {
+			for (i in 0...layers.length) spread[i] = false;
+		}
+
+		if (manager.defence.timeSinceHostileSeen == 1) {
+			for (i in 0...layers.length) spread[i] = true;
+		}
+
+		for (i in 0...layers.length) {
+			if (manager.defence.timeSinceHostileSeen > (i+1)*20) {
+				spread[i] = false;
+			}
+		}
+	}
+
 	public function assignScore ( creep : AICreep ) : Float {
 
 		clean ();
@@ -48,12 +70,18 @@ class AIDefencePosition extends Base {
 		for (i in 0...layers.length) totalFullness += layers[i].length > 0 ? assigned[i].length / layers[i].length : 1;
 		totalFullness /= layers.length;
 
-		var layerFullness = layers[layer].length > 0 ? assigned[layer].length / layers[layer].length : 1;
+		var mult = 1.0;
+		while (layer < layers.length && assigned[layer].length >= layers[layer].length) {
+			layer++;
+			mult *= 0.5;
+		}
+
+		var layerFullness = layer < layers.length && layers[layer].length > 0 ? assigned[layer].length / layers[layer].length : 1;
 		
 		//trace (totalFullness + " " + layerFullness + " : " + creep.role);
 		if (layerFullness == 1) return 0;
 
-		return 1 - (layerFullness + totalFullness)*0.5;
+		return (1 - (layerFullness + totalFullness)*0.5)*mult;
 	}
 
 	function clean () {
@@ -72,7 +100,13 @@ class AIDefencePosition extends Base {
 
 	public function getTargetPosition ( creep : AICreep ) {
 		switch (getAssignedIndex (creep)) {
-			case Some(index): return layers[index.layer][index.index];
+			case Some(index): {
+				if (spread[index.layer]) {
+					return manager.map.getRegroupingPoint(creep.id % manager.numRegroupingPoints);
+				} else {
+					return layers[index.layer][index.index];
+				}
+			}
 			case None: throw creep.id + " is not assigned to this defence position";
 		}
 	}

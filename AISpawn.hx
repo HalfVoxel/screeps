@@ -22,8 +22,8 @@ class AISpawn extends Base {
 	static var roleTypes : Array<Array<SpawnType>> = 
 	[
 		[
-		{type: AICreep, role: Harvester, body: [Move,Work,Work,Work], category: Economy, advancedThreshold: 0, amountProportion: 1.1},
-		{type: AICreep, role: Harvester, body: [Move,Work,Work,Work,Work], category: Economy, advancedThreshold: 200, amountProportion: 1.1},
+		//{type: AICreep, role: Harvester, body: [Move,Work,Work,Work], category: Economy, advancedThreshold: 0, amountProportion: 1.1},
+		{type: AICreep, role: Harvester, body: [Move,Work,Work,Work,Work], category: Economy, advancedThreshold: 0, amountProportion: 1.1},
 		{type: AICreep, role: Harvester, body: [Move,Work,Work,Work,Work, Work, Work], category: Economy, advancedThreshold: 300, amountProportion: 1.1}
 		],
 
@@ -35,18 +35,22 @@ class AISpawn extends Base {
 		],
 
 		[
-		{type: AICreep, role: MeleeAttacker, body: [Tough, Move, Move, Attack, Attack], category: Military, advancedThreshold: 0, amountProportion: 1},
-		{type: AICreep, role: MeleeAttacker, body: [Tough, Tough, Move, Move, Attack, Attack], category: Military, advancedThreshold: 150, amountProportion: 1},
-		{type: AICreep, role: MeleeAttacker, body: [Tough, Move, Attack, Move, Move, Attack, Attack], category: Military, advancedThreshold: 300, amountProportion: 1}
+		//{type: AICreep, role: MeleeAttacker, body: [Tough, Attack, Attack, Move, Attack], category: Military, advancedThreshold: 0, amountProportion: 1.2},
+		//{type: AICreep, role: MeleeAttacker, body: [Tough, Move, Attack, Attack, Move, Attack], category: Military, advancedThreshold: 150, amountProportion: 1.2},
+		{type: AICreep, role: MeleeAttacker, body: [Tough, Move, Attack, Move, Attack, Attack, Attack], category: Military, advancedThreshold: 300, amountProportion: 0.2},
+		{type: AICreep, role: MeleeAttacker, body: [Tough, Move, Attack, Attack, Attack, Move, Move, Attack], category: Military, advancedThreshold: 300, amountProportion: 1.2}
 		],
 
-		[
+		/*[
 		{type: AICreep, role: MeleeWall, body: [Tough, Tough, Tough, Move, Attack], category: Military, advancedThreshold: 0, amountProportion: 1},
-		],
+		],*/
 
 		[
-		{type: AICreep, role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack], category: Military, advancedThreshold: 0, amountProportion: 1.4},
-		{type: AICreep, role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack, Move, RangedAttack], category: Military, advancedThreshold: 300, amountProportion: 1.4},
+		//{type: AICreep, role: RangedAttacker, body: [Move, RangedAttack, RangedAttack, Move], category: Military, advancedThreshold: 0, amountProportion: 1.4},
+		{type: AICreep, role: RangedAttacker, body: [RangedAttack, RangedAttack, Move, RangedAttack, Move], category: Military, advancedThreshold: 0, amountProportion: 2.4},
+		{type: AICreep, role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack, Move, RangedAttack], category: Military, advancedThreshold: 0, amountProportion: 2.4},
+		{type: AICreep, role: RangedAttacker, body: [Tough, Move, Move, RangedAttack, RangedAttack, Move, RangedAttack], category: Military, advancedThreshold: 300, amountProportion: 2.4},
+		{type: AICreep, role: RangedAttacker, body: [Tough, Move, Move, RangedAttack, RangedAttack, Move, RangedAttack, RangedAttack], category: Military, advancedThreshold: 300, amountProportion: 2.4},
 		],
 
 		[
@@ -57,8 +61,10 @@ class AISpawn extends Base {
 		],
 
 		[
-		{type: AICreep, role: Builder, body: [Move, Work, Work, Carry, Move], category: Economy, advancedThreshold: 100, amountProportion: 0.01},
-		{type: AICreep, role: Builder, body: [Move, Work, Carry, Move, Work, Carry], category: Economy, advancedThreshold: 0, amountProportion: 0.01}
+		{type: AICreep, role: Builder, body: [Move, Work, Work, Carry, Carry], category: Economy, advancedThreshold: 100, amountProportion: 0.1},
+		{type: AICreep, role: Builder, body: [Move, Work, Carry, Move, Work, Carry], category: Economy, advancedThreshold: 0, amountProportion: 0.1},
+		{type: AICreep, role: Builder, body: [Move, Work, Carry, Work, Move, Work, Carry], category: Economy, advancedThreshold: 0, amountProportion: 0.1},
+		{type: AICreep, role: Builder, body: [Move, Work, Carry, Move, Work, Move, Work, Carry], category: Economy, advancedThreshold: 0, amountProportion: 0.1}
 		]
 	];
 
@@ -66,6 +72,8 @@ class AISpawn extends Base {
 		initialize();
 		return this;
 	}
+
+	var highestHostileMilitaryScore = 0;
 
 	function getBestRole () {
 		var bestRole = roleTypes[0][0];
@@ -77,12 +85,14 @@ class AISpawn extends Base {
 			hostileMilitary += creep.getActiveBodyparts(Attack) + creep.getActiveBodyparts(RangedAttack) + creep.getActiveBodyparts(Heal);
 		}
 
+		if (hostileMilitary > highestHostileMilitaryScore) highestHostileMilitaryScore = hostileMilitary;
+
 		var friendlyMilitary = 0;
 		for (v in IDManager.creeps) friendlyMilitary += v.src.getActiveBodyparts(Attack) + v.src.getActiveBodyparts(RangedAttack) + v.src.getActiveBodyparts(Heal);
 
 		var complexityScore = manager.getComplexityScore ();
 
-		var sources = src.room.find(Sources).length;
+		var sourceSlots = Lambda.fold (IDManager.sources, function(s,acc) { return s.maxAssignedCount + acc; }, 0);// src.room.find(Sources).length;
 
 		
 		// We got lots of energy, do whatever
@@ -131,6 +141,11 @@ class AISpawn extends Base {
 						score *= 2;
 					}
 
+					if (highestHostileMilitaryScore*2 >= friendlyMilitary && highestHostileMilitaryScore > 0 && role.category == Military) {
+						score += 1;
+						score *= 2;
+					}
+
 					if (role.category == Military) {
 						score += militaryTimeScore;
 					}
@@ -139,12 +154,12 @@ class AISpawn extends Base {
 						score += 1;
 					}
 
-					if (role.role == Harvester && manager.getRoleCount(role.role) < sources*2 && hostileMilitary == 0) {
-						score += 2 * (1/300) * complexityScore;
+					if (role.role == Harvester && manager.getRoleCount(role.role) < sourceSlots && hostileMilitary == 0) {
+						score += 1 * (1/300) * complexityScore;
 					}
 
 					// Too many harvesters
-					if (role.role == Harvester && manager.getRoleCount(role.role) >= sources*4) score *= 0.25;
+					if (role.role == Harvester && manager.getRoleCount(role.role) >= sourceSlots) score *= 0.25;
 
 					if (role.role == EnergyCarrier) {
 						score += manager.carrierNeeded*0.08;// / manager.getRoleCount(Harvester);

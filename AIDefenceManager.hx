@@ -1,9 +1,11 @@
 using AICollectorPoints;
-using ArrayTools
+using ArrayTools;
 
 class AIDefenceManager extends Base {
 
 	public override function isStandalone () { return true; }
+
+	public var timeSinceHostileSeen : Int = 0;
 
 	public function configure () {
 		initialize ();
@@ -12,14 +14,15 @@ class AIDefenceManager extends Base {
 
 	public override function tick () {
 
+		timeSinceHostileSeen++;
+
+		var room = Game.getRoom("1-1").extract();
+
+		if (room.find (HostileCreeps).length > 0) timeSinceHostileSeen = 0;
+
 		if (IDManager.defences.length == 0) {
 
 			var map = AIMap.createMap(AIMap.MapSize);
-
-			var room = switch (Game.getRoomByName("1-1")) {
-				case Some(room): room;
-				case None: throw "Could not find room";
-			}
 
 			var exits = new Array<Point>();
 
@@ -55,7 +58,11 @@ class AIDefenceManager extends Base {
 
 			for (comp in components) {
 				var layers = [for (i in 0...3) comp.nodes.filter (function (n) { return n.f == 2+i; })];
-				var pointLayers = [for (layer in layers) layer.map(AICollectorPoints.point2intvector2).shuffle()];
+				var pointLayers = [for (layer in layers) layer.map(AICollectorPoints.point2intvector2)];
+				
+				// Increase randomness
+				for (layer in pointLayers) layer.shuffle();
+
 				trace("Found component with " + comp.nodes.length + " nodes [" + layers[0].length + ", " + layers[1].length + ", " + layers[2].length +"] " + pointLayers.length);
 
 				new AIDefencePosition().configure (pointLayers[0], pointLayers[1], pointLayers[2]);

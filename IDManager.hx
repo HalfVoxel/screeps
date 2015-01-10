@@ -71,12 +71,8 @@ class IDManager {
 		}
 		for (key in toRemove) creepQueue.remove(key);
 
-		var room = null;
+		var room = Game.getRoom ("1-1").extract();
 		// Hacky way to find the current room
-		switch (Game.getRoomByName ("1-1")) {
-			case Some(roomObject): room = roomObject;
-			case None: throw "Cannot find room";
-		}
 
 		var toDestroy = new Array<Base>();
 
@@ -85,7 +81,7 @@ class IDManager {
 
 			// Right now, ids have not been deserialized, so we have to do this
 			var linkStr : String = cast ent.linked;
-			var destroyed = bySCID (linkStr != null ? cast linkStr.substring(1,linkStr.length) : null) == null;
+			var destroyed = bySCID (linkStr != null ? cast linkStr.substring(1,linkStr.length) : null).isNone();
 
 			var ent : Base = Type.createInstance (Type.resolveClass (ent.type), []);
 			

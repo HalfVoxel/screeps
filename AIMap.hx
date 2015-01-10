@@ -1,3 +1,4 @@
+@:build(maybe.Extract.build())
 class AIMap extends Base {
 
 	var regroupingMap : Array<Float>;
@@ -22,15 +23,10 @@ class AIMap extends Base {
 	public override function isStandalone () { return true; }
 
 	public function getTerrainMap () {
-		switch (Game.getRoomByName("1-1")) {
-			case Some(room): {
-				if (terrainMap == null) terrainMap = generateTerrainMap (room);
-			}
-			case None: throw "Could not find room";
-		}
-
+		if (terrainMap == null) terrainMap = generateTerrainMap (Game.getRoom("1-1").extract());
 		return terrainMap;
 	}
+
 	public function configure () {
 		initialize ();
 		return this;
@@ -83,13 +79,8 @@ class AIMap extends Base {
 		decay(movementPatternMapSlow, 0.97);
 
 		if (Game.time % 20 == 0) {
-			switch (Game.getRoomByName("1-1")) {
-				case Some(room): {
-					//if (terrainMap == null) terrainMap = generateTerrainMap (room);
-					regroupingMap = haxe.Timer.measure (function () { return generateRegroupingMap (room);});
-				}
-				case None: trace("Could not find room");
-			}
+			var room = Game.getRoom("1-1").extract();
+			regroupingMap = haxe.Timer.measure (function () { return generateRegroupingMap (room);});
 		}
 	}
 
@@ -110,7 +101,7 @@ class AIMap extends Base {
 
 	public static function maskWithReplacement (map : Array<Float>, mask : Array<Float>, replacement : Float ) {
 		for (i in 0...map.length) {
-			map[i] = mask[i] > 0 ? map[i] : replacement;
+			map[i] = mask[i] >= 0 ? map[i] : replacement;
 		}
 	}
 
@@ -128,13 +119,13 @@ class AIMap extends Base {
 
 			for (y in 1...size-1) {
 				for (x in 1...size-1) {
-					var v = 0.0;
+					var v = map2[y*size + x];
 
 					for (i in 0...4 ) {
 						v += map1[(y+dy[i])*size + x+dx[i]];
 					}
 
-					map2[y*size + x] = v/4;
+					map2[y*size + x] = v/5;
 				}
 			}
 
@@ -332,7 +323,7 @@ class AIMap extends Base {
 							break;
 						}
 						if (item.terrain == Swamp) {
-							score += 2;
+							score += 10;
 						}
 					}
 				}
@@ -347,6 +338,12 @@ class AIMap extends Base {
 	public static function zero ( map : Array<Float> ) {
 		for ( i in 0...map.length ) {
 			map[i] = 0;
+		}
+	}
+
+	public static function setMap ( map : Array<Float>, value : Float ) {
+		for ( i in 0...map.length ) {
+			map[i] = value;
 		}
 	}
 
@@ -563,7 +560,7 @@ class AIMap extends Base {
 		var map = createMap(MapSize);
 
 		for (spawn in IDManager.spawns) {
-			addDeltaRoomPos (map,spawn.src.pos.x,spawn.src.pos.y, -40000);
+			addDeltaRoomPos (map,spawn.src.pos.x,spawn.src.pos.y, -80000);
 		}
 		smooth(map, 8);
 		for (spawn in IDManager.spawns) {
@@ -577,6 +574,9 @@ class AIMap extends Base {
 		}
 		smooth(map, 3);
 
+		addMap (map, terrainMap, 100);
+
+		maskWithReplacement (map, terrainMap, 1000);
 
 		var map2 = createMap(MapSize);
 		
@@ -584,11 +584,11 @@ class AIMap extends Base {
 
 		smooth(map2, 2);
 
-		for (i in 0...terrainMap.length) {
+		/*for (i in 0...terrainMap.length) {
 			if (terrainMap[i] == -1) {
 				map[i] = -1000;
 			}
-		}
+		}*/
 		smooth(map2, 1);
 
 		for (i in 0...terrainMap.length) {
@@ -599,28 +599,33 @@ class AIMap extends Base {
 
 		addMap (map, map2, 1);
 
+		zero(map2);
+
 		for (structure in IDManager.spawns) {
-			addDeltaRoomPos (map,structure.src.pos.x,structure.src.pos.y, 10000);
+			addDeltaRoomPos (map2,structure.src.pos.x,structure.src.pos.y, 10000);
 		}
 
 		for (structure in Game.structures) {
-			addDeltaRoomPos (map,structure.pos.x,structure.pos.y, 10000);
+			addDeltaRoomPos (map2,structure.pos.x,structure.pos.y, 10000);
 		}
 
 		for (structure in IDManager.constructionSites) {
-			addDeltaRoomPos (map,structure.src.pos.x,structure.src.pos.y, 10000);
+			addDeltaRoomPos (map2,structure.src.pos.x,structure.src.pos.y, 10000);
 		}
 
-		zero(map2);
+		smooth (map2, 1);
 
-		var room = switch (Game.getRoomByName("1-1")) {
-			case Some(room): room;
-			case None: throw "Could not find room";
-		}
+		addMap (map, map2, 1);
+
+		setMap(map2,-1);
+
+		var room = Game.getRoom("1-1").extract();
 
 		for (source in IDManager.sources) {
 			addDeltaRoomPos (map2, source.src.pos.x, source.src.pos.y, -1000);
 		}
+
+		smoothCross(map2, 1);
 
 		for (workerPath in IDManager.manager.workerPaths) {
 			for (node in workerPath.path) {
@@ -628,11 +633,13 @@ class AIMap extends Base {
 			}
 		}
 
+		maskWithReplacement(map2, terrainMap, -1);
+
 		smoothCross(map2, 1);
 
 		for (workerPath in IDManager.manager.workerPaths) {
 			for (node in workerPath.path) {
-				setRoomPos (map2, node.x, node.y, 0);
+				setRoomPos (map2, node.x, node.y, -1);
 			}
 		}
 

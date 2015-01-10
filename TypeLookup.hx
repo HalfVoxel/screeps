@@ -18,4 +18,5 @@ abstract TypeLookup(String) to String {
 	var AISource = "AISource";
 	var AIDefenceManager = "AIDefenceManager";
 	var AIDefencePosition = "AIDefencePosition";
+	var AIStatistics = "AIStatistics";
 }

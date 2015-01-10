@@ -11,6 +11,7 @@ class AIManager {
 	public var constructionManager : AIConstructionManager;
 	public var pathfinder : AIPathfinder;
 	public var defence : AIDefenceManager;
+	public var statistics : AIStatistics;
 
 	public var workerPaths : Array<WorkerPath>;
 
@@ -22,6 +23,7 @@ class AIManager {
 		extensionEnergyNeeded *= 0.9;
 
 		if (defence == null) defence = new AIDefenceManager ().configure ();
+		if (statistics == null) statistics = new AIStatistics ().configure ();
 
 		if (constructionManager == null) constructionManager = new AIConstructionManager ().configure ();
 		if (map == null) map = new AIMap().configure();
@@ -33,10 +35,7 @@ class AIManager {
 
 		defence.tick ();
 
-		var room = switch (Game.getRoomByName("1-1")) {
-			case Some(room): room;
-			case None: throw "Could not find room";
-		}
+		var room = Game.getRoom("1-1").extract();
 
 		for (ent in room.find(DroppedEnergy)) {
 			var energy : Energy = cast ent;

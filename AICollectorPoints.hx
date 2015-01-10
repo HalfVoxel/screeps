@@ -53,10 +53,7 @@ class AICollectorPoints extends Base {
 		var results : Array<Point> = cast findUntil (cast pts, terrain, function (v : Point) { return v.f == 2; }, 100000);
 		var nodeResults = results.map (function (p : Point) { return new CNode (p.x, p.y, p.f, p.root); });
 
-		var room = switch (Game.getRoomByName("1-1")) {
-			case Some(room): room;
-			case None: throw "Did not find room";
-		}
+		var room = Game.getRoom("1-1").extract();
 
 		connect (nodeResults, true);
 		var components = groupIntoComponents (nodeResults, true);
@@ -128,6 +125,8 @@ class AICollectorPoints extends Base {
 			if (haxe.Timer.stamp () - startTime > 0.3) throw "Killed here";
 
 			var pathto = pathfinder.findPath (spawn.src.pos, stack[0], true , costs );
+			if (pathto == null) return null;
+
 			totCost += pathfinder.sumCost (pathto, costs);
 			addDeltaPath (costs, pathto, 20);
 
@@ -142,6 +141,7 @@ class AICollectorPoints extends Base {
 
 				if (last != node) {
 					var intpath = pathfinder.findPath (last, node, true , costs );
+					if (intpath == null) return null;
 					totCost += pathfinder.sumCost (intpath, costs);
 
 					addDeltaPath (costs, intpath, 20);
@@ -266,6 +266,8 @@ class AICollectorPoints extends Base {
 			if (!validComb) continue;
 
 			var res = dfsMinimize (innercomps, 0, new Array<CNode>(), evaluateComponentCombination);
+			if (res == null) continue;
+			
 			bestScore = res.cost;
 			bestPaths = res.data;
 

@@ -18,11 +18,7 @@ class AIConstructionManager extends Base {
 		// Performance
 		if (Game.time % 5 != 0) return;
 
-		var room = null;
-		switch (Game.getRoomByName("1-1")) {
-			case Some(v): room = v;
-			case None: throw "Could not find room";
-		}
+		var room = Game.getRoom("1-1").extract();
 
 		var complexityScore = manager.getComplexityScore ();
 

@@ -1,3 +1,11 @@
 http://screeps.com/g/#!/replay/548b8cae831aa2117797756a?s=706444
 http://screeps.com/g/#!/replay/548b76f4831aa2117797755c?s=82306
 http://screeps.com/g/#!/replay/548cec596de12ca207048a90?s=240631
+http://screeps.com/g/#!/replay/548d886d6de12ca207048abf?s=665821
+
+http://screeps.com/g/#!/replay/548da4866de12ca207048ac8?s=72441 3000
+http://screeps.com/g/#!/replay/54a8c1440a472ba64d1beee2?s=698088 3333
+http://screeps.com/g/#!/replay/54a9caf70a472ba64d1beef1?s=965713 3400+ (weird bugs)
+
+
+http://screeps.com/g/#!/replay/54b078030a472ba64d1bef60?s=543808 2700 (after mass attack)

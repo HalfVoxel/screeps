@@ -17,6 +17,8 @@ class Screeps {
 
 	static public function main():Void {
 
+		
+
 		haxe.Timer.measure (function () { 
 			try {
 				//haxe.Timer.measure (function () { 
@@ -44,7 +46,7 @@ class Screeps {
 
 	public function run () {
 
-		
+			
 
 			IDManager.manager.tick();
 			
@@ -61,6 +63,10 @@ class Screeps {
 			//var times : Array<Float> = [0,0,0,0,0,0,0,0,0];
 			//var counts = [0,0,0,0,0,0,0,0,0];
 
+			for (defence in IDManager.defences) {
+				defence.tick ();
+			}
+			
 			for (energy in IDManager.energy) {
 				energy.tick();
 			}

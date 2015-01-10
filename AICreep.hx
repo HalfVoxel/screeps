@@ -14,6 +14,7 @@ class AICreep extends Base {
 
 	public var attackTarget : Creep;
 	public var currentDefencePosition : AIDefencePosition;
+	public var prevBestBuildSpot : RoomPosition;
 
 	static var dx = [1, 1, 0, -1, -1, -1, 0, 1];
 	static var dy = [0, 1, 1, 1, 0, -1, -1, -1];
@@ -29,10 +30,12 @@ class AICreep extends Base {
 
 	public override function onCreated () {
 		manager.modRoleCount(role, 1);
+		manager.statistics.registerCreated (role);
 	}
 
 	public override function onDestroyed () {
 		manager.modRoleCount(role, -1);
+		manager.statistics.registerDeath (role);
 	}
 
 	public override function tick () {
@@ -85,6 +88,13 @@ class AICreep extends Base {
 					break;
 				}
 			}
+			for (ent in IDManager.creeps) {
+				if ((ent.role == Harvester || (ent.role == Builder && ent != this)) && ent.src.pos.x == nx && ent.src.pos.y == ny) {
+					invalid = true;
+					break;
+				}
+			}
+
 			for (ent in IDManager.constructionSites) {
 				if (ent.src.pos.x == nx && ent.src.pos.y == ny) {
 					movementOnThis += 100;
@@ -92,21 +102,38 @@ class AICreep extends Base {
 			}
 
 			if (!invalid) {
-				var score = (movementNearThis/8) - 3*movementOnThis;
+				var score = (movementNearThis/8)*10 - 30*movementOnThis - Math.abs(nx - src.pos.x) - Math.abs(ny - src.pos.y);
+				if (prevBestBuildSpot != null && prevBestBuildSpot.x == nx && prevBestBuildSpot.y == ny && score > 0) {
+					trace("Found previous " + src.name + " " + ny + " " +nx);
+					score *= 2.0;
+				}
+
 				options.push ({ score : score, loc :  src.room.getPositionAt(nx, ny)} );
 			}
 		}
 
-		trace(assignedIndex + " " + options.length);
-		options.sort ( function (a, b) { return a.score < b.score ? 1 : (a.score == b.score ? -1 : 0); });
+		
+		options.sort ( function (a, b) { return a.score < b.score ? 1 : (a.score > b.score ? -1 : 0); });
 
-		bestLoc = options[Std.int(Math.max (0, Math.min(assignedIndex, options.length-1)))].loc;
+		//trace(assignedIndex + " " + options.length);
+		//trace(options);
+		
+		//bestLoc = options[Std.int(Math.max (0, Math.min(assignedIndex, options.length-1)))].loc;
+		bestLoc = options[0].loc;
+		
+		if (prevBestBuildSpot != null && (bestLoc.x != prevBestBuildSpot.x || bestLoc.y != prevBestBuildSpot.y)) {
+			trace("Switched spot: " + prevBestBuildSpot.x + ","+prevBestBuildSpot.y + " -> " + bestLoc.x +", " + bestLoc.y);
+			trace(options);
+		}
+		prevBestBuildSpot = bestLoc;
 
-		src.room.createFlag(currentTarget.linked.pos.x,currentTarget.linked.pos.y,"P");
+		//src.room.createFlag(currentTarget.linked.pos.x,currentTarget.linked.pos.y,"P");
 
-		src.room.createFlag(bestLoc.x,bestLoc.y,"TG");
+		if (Game.flags["TG."+id] != null) Game.flags["TG."+id].remove();
+		src.room.createFlag(bestLoc.x,bestLoc.y,"TG."+id, Red);
 
 		var near = src.pos.x == bestLoc.x && src.pos.y == bestLoc.y;//isNearTo (currentTarget.linked.pos);
+		var almostThere = src.pos.isNearTo (bestLoc) || src.pos.isNearTo(currentTarget.linked.pos);
 
 		if (buildObstructed > 5) {
 			if (currentTarget != null) {
@@ -118,9 +145,9 @@ class AICreep extends Base {
 			}
 		}
 
-		if (src.energy < src.energyCapacity && (!near || src.energy == 0)) {
+		if (src.energy < src.energyCapacity && (!almostThere || src.energy == 0)) {
 
-			switch(src.pos.findClosestFriendlySpawn ()) {
+			switch(src.pos.findClosestFriendlySpawn ().option()) {
 				case Some(spawn): {
 					var spawnDist = src.pos.findPathTo (spawn, { ignoreCreeps:true }).length;
 
@@ -141,10 +168,14 @@ class AICreep extends Base {
 				return;
 			}
 			src.moveTo (bestLoc, {heuristicWeight: 1});
-		} else {
+		}
+
+		if (src.pos.isNearTo(currentTarget.linked.pos)) {
 			var constructionSite : AIConstructionSite = cast currentTarget;
 			switch (src.build (constructionSite.src)) {
-				case InvalidTarget: buildObstructed++;
+				case InvalidTarget: {
+					buildObstructed++;
+				}
 				default: buildObstructed = Std.int(Math.max(buildObstructed-1, 0));
 			}
 		}
@@ -161,7 +192,8 @@ class AICreep extends Base {
 			var source = targetSource;
 
 			var pathToSource = source != null ? src.pos.findPathTo(source.src.pos, {heuristicWeight: 1}) : [];
-			var earliestEnergyGather = Game.time +  (source != null && pathToSource.length != 0 ? Game.time +Math.max (4*pathToSource.length, source.src.energy > 0 ? 0 : source.src.ticksToRegeneration) : 1000);
+			// Note ignores source.sustainabilityFactor
+			var earliestEnergyGather = Game.time +  (source != null && pathToSource.length != 0 ? Math.max (4*pathToSource.length, source.src.energy > 0 ? 0 : source.src.ticksToRegeneration) : 1000);
 
 			if (src.id == "id11418155875539" ) trace("@" + src.pos + " " + src.id);
 			//targetSource = switch(src.pos.findClosestActiveSource ({heuristicWeight: 1})) {
@@ -169,7 +201,7 @@ class AICreep extends Base {
 
 				var path = src.pos.findPathTo(otherSource.src.pos, {heuristicWeight: 1});
 
-				var newEarliestEnergyGather = Game.time + (path.length != 0 ? Math.max (4*path.length, otherSource.src.energy > 30 ? 0 : otherSource.src.ticksToRegeneration) : 1000);
+				var newEarliestEnergyGather = Game.time + (path.length != 0 ? Math.max (4*path.length, otherSource.src.energy > 30 ? 0 : otherSource.src.ticksToRegeneration) : 1000)/otherSource.sustainabilityFactor;
 
 				if (src.id == "id11418155875539" ) trace(earliestEnergyGather + " " + newEarliestEnergyGather + " " + otherSource.src.pos + " " + path.length + " " + pathToSource.length);
 
@@ -312,7 +344,10 @@ class AICreep extends Base {
 
 		if (currentDefencePosition != null) {
 			var target = currentDefencePosition.getTargetPosition (this);
-			src.moveTo (target.x,target.y);
+			switch (src.moveTo (target.x,target.y)) {
+				case NoPath: src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
+				default:
+			}
 		} else {
 			src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
 		}
@@ -323,7 +358,7 @@ class AICreep extends Base {
 		assignToDefences ();
 
 		if (attackTarget == null || RoomPosition.squaredDistance (src.pos, attackTarget.pos) < 4*4 || Game.time % 6 == id % 6) {
-			switch(src.pos.findClosestHostileCreep ()) {
+			switch(src.pos.findClosestHostileCreep ().option()) {
 				case Some(target): {
 					attackTarget = target;
 				}
@@ -332,7 +367,12 @@ class AICreep extends Base {
 		}
 
 		if (attackTarget != null) {
-			src.moveTo(attackTarget, {heuristicWeight: 1});
+			if (src.hits <= src.hitsMax*0.6) {
+				trace("Flee!!");
+				moveToDefault ();
+			} else {
+				src.moveTo(attackTarget, {heuristicWeight: 1});
+			}
 
 			if ( src.pos.isNearTo(attackTarget.pos)) {
 				src.attack(attackTarget);
@@ -435,19 +475,30 @@ class AICreep extends Base {
 			//trace(bestx + " " + besty + " " +bestScore + " " + bestDist);
 
 			var target : Creep = cast targets[0];
-			src.moveTo(bestx + src.pos.x, besty + src.pos.y, {heuristicWeight: 1});
 
-			if ( src.pos.inRangeTo(target.pos, 3)) {
+			if (src.hits <= src.hitsMax*0.6) {
+				// Flee
+				moveToDefault ();
+			} else {
+				src.moveTo(bestx + src.pos.x, besty + src.pos.y, {heuristicWeight: 1});
+			}
+
+			if (src.pos.inRangeTo(target.pos, 3)) {
 				src.rangedAttack(target);
 			}
 		} else {
-			switch (src.pos.findClosestHostileCreep ()) {
-			case Some(target): src.moveTo(target, {heuristicWeight: 1});
-			case None: {
+			if (src.hits <= src.hitsMax*0.6) {
+				// Flee
 				moveToDefault ();
-				//src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
-			}
-			}
+			} else {
+				switch (src.pos.findClosestHostileCreep ().option()) {
+					case Some(target): src.moveTo(target, {heuristicWeight: 1});
+					case None: {
+						moveToDefault ();
+						//src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
+					}
+				}
+			}	
 		}
 	}
 }
