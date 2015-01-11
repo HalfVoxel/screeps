@@ -11,8 +11,100 @@ class Healer extends AICreep {
 		return this;
 	}
 
-	public override function tick () {
+	public override function preprocessAssignment ( assignment : Screeps.Assignment ) {
 
+		if (role != RangedAttacker) return;
+
+		var targets = IDManager.creeps;
+
+		if (targets.length > 0) {
+			var occ = new Array<Float>();
+			var occ2 = new Array<Float>();
+			var size = 2+2+1;
+			var offset = Math.floor(size/2);
+			for ( x in 0...size ) {
+				for ( y in 0...size ) {
+					occ.push(0);
+					occ2.push(0);
+				}
+			}
+
+			for (target in targets) {
+
+				var nx = (target.src.pos.x - src.pos.x) + offset;
+				var ny = (target.src.pos.y - src.pos.y) + offset;
+
+				if (target.my && nx >= 0 && nx < size && ny >= 0 && ny < size) {
+
+					var healthFraction = target.src.hits / target.src.hitsMax;
+
+					occ[ny*size + nx] = Math.max (occ[ny*size + nx], 1 - healthFraction*healthFraction);
+				}
+			}
+
+			for ( i in 0...1) {
+				for ( j in 0...occ2.length ) {
+					occ2[j] = 0;
+				}
+
+				for ( x in 0...size ) {
+					for ( y in 0...size ) {
+						occ2[y*size + x] = Math.max (occ[y*size + x], occ2[y*size + x]);
+
+						for ( di in 0...AICreep.dx.length) {
+							var nx = x + AICreep.dx[di];
+							var ny = y + AICreep.dy[di];
+							if (nx >= 0 && ny >= 0 && nx < size && ny < size ) {
+								occ2[ny*size + nx] = Math.max (occ2[ny*size + nx], occ[y*size + x]-1);
+							}
+						}
+					}
+				}
+
+				var tmp = occ;
+				occ = occ2;
+				occ2 = tmp;
+			}
+
+			// result is in occ
+
+			for ( x in 0...size ) {
+				for ( y in 0...size ) {
+					var look = src.room.lookAt({x: x-offset+src.pos.x, y: y-offset+src.pos.y});
+					for ( lookItem in look ) {
+						if (lookItem.type == Terrain && lookItem.terrain == Wall ) {
+							occ[y*size + x] = 0;
+						}
+					}
+				}
+			}
+
+			for (nx in AICreep.near1x) {
+				for (ny in AICreep.near1y) {
+					var ox = nx + offset;
+					var oy = ny + offset;
+					var score = occ[oy*size + ox] * 80;
+					
+					var potentialDamageOnMe = AIMap.getRoomPos (manager.map.potentialDamageMap, src.pos.x + nx, src.pos.y + ny);
+
+					var finalScore = 200 + Std.int(score - potentialDamageOnMe);
+
+					if (score == 0) finalScore -= 30;
+
+					assignment.add (this, src.pos.x + nx, src.pos.y + ny, finalScore);
+
+					/*
+					if (massDamage > 10) {
+						assignment.add (this, src.pos.x + nx, src.pos.y + ny, massDamage);
+					} else if (score-bestScore <= 1) {
+						assignment.add (this, src.pos.x + nx, src.pos.y + ny, 10+(5-score));
+					}*/
+				}
+			}
+		}
+	}
+
+	function findGoodHealingTarget ( shortDistance : Bool ) {
 		var bestTarget : AICreep = null;
 		var bestScore = 0.0;
 
@@ -27,11 +119,18 @@ class Healer extends AICreep {
 				if (creep.role == RangedAttacker) score += 0.02;
 
 				if (score > bestScore) {
-					var pathLength = src.pos.findPathTo(creep.src.pos).length;
+					var pathCost = 0.0;
 
-					if (pathLength == 0) continue;
+					if (shortDistance) {
+						if (!src.pos.isNearTo (creep.src.pos)) continue;
+					} else {
+						var pathLength = src.pos.findPathTo(creep.src.pos).length;
 
-					var pathCost = Math.min (pathLength/20, 1);
+						if (pathLength == 0) continue;
+
+					 	pathCost = Math.min (pathLength/20, 1);
+					 }
+
 					pathCost *= pathCost;
 					score *= 1 - 0.3*pathCost;
 
@@ -58,8 +157,6 @@ class Healer extends AICreep {
 			}
 		}
 
-		healingTarget = bestTarget;
-
 		if (bestTarget == null) {
 			for (creep in IDManager.creeps) {
 				if (creep.role == MeleeAttacker || creep.role == MeleeWall) {
@@ -78,28 +175,57 @@ class Healer extends AICreep {
 			}
 		}
 
-		if (bestTarget != null) {
-			src.moveTo(bestTarget.src);
+		return bestTarget;
+	}
 
-			if (src.pos.isNearTo(bestTarget.src.pos)) {
-				src.heal(bestTarget.src);
-			} else if (src.pos.inRangeTo(bestTarget.src.pos, 3)) {
+	public override function tick () {
 
-				src.rangedHeal(bestTarget.src);
+		var match = manager.assignment.getMatch (this);
+
+		if (match != null) {
+			src.moveTo(src.room.getPositionAt (match.x, match.y), {reusePath: 0});
+
+			healingTarget = findGoodHealingTarget (true);
+
+			if (healingTarget != null) {
+				if (src.pos.isNearTo(healingTarget.src.pos)) {
+					src.heal(healingTarget.src);
+				} else if (src.pos.inRangeTo(healingTarget.src.pos, 3)) {
+					src.rangedHeal(healingTarget.src);
+				}
 			} else {
-				for (creep in IDManager.creeps) {
-					if (creep != this) {
-						if (src.pos.inRangeTo(creep.src.pos, 3) && creep.src.hits < creep.src.hitsMax) {
-							src.rangedHeal(creep.src);
-							break;
+				healingTarget = findGoodHealingTarget (false);
+				if (healingTarget != null) {
+					src.rangedHeal(healingTarget.src);
+				}
+			}
+		} else {
+
+			healingTarget = findGoodHealingTarget(false);
+
+			if (healingTarget != null) {
+				src.moveTo(healingTarget.src);
+
+				if (src.pos.isNearTo(healingTarget.src.pos)) {
+					src.heal(healingTarget.src);
+				} else if (src.pos.inRangeTo(healingTarget.src.pos, 3)) {
+
+					src.rangedHeal(healingTarget.src);
+				} else {
+					for (creep in IDManager.creeps) {
+						if (creep != this) {
+							if (src.pos.inRangeTo(creep.src.pos, 3) && creep.src.hits < creep.src.hitsMax) {
+								src.rangedHeal(creep.src);
+								break;
+							}
 						}
 					}
 				}
+				
+			} else {
+				moveToDefault ();
+				//src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
 			}
-			
-		} else {
-			moveToDefault ();
-			//src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
 		}
 	}
 }

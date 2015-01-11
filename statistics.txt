@@ -1,0 +1,8 @@
+Roles			Energy		Deaths
+Harvester		2730		4
+MeleeAttacker	0			0
+RangedAttacker	12050		20
+EnergyCarrier	4350		15
+Healer			11900		21
+Builder			570			2
+MeleeWall		0			0

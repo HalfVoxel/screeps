@@ -12,6 +12,8 @@ class AIMap extends Base {
 
 	var buildSpawnMap : Array<Float>;
 
+	public var potentialDamageMap : Array<Float>;
+
 	public var regroupingPoints : Array<{x:Int, y:Int, value:Float}>;
 
 	var flag : Flag;
@@ -78,6 +80,8 @@ class AIMap extends Base {
 		decay(movementPatternMap, 0.97);
 		decay(movementPatternMapSlow, 0.97);
 
+		potentialDamageMap = generatePotentialDamageMap ();
+
 		if (Game.time % 20 == 0) {
 			var room = Game.getRoom("1-1").extract();
 			regroupingMap = haxe.Timer.measure (function () { return generateRegroupingMap (room);});
@@ -119,7 +123,7 @@ class AIMap extends Base {
 
 			for (y in 1...size-1) {
 				for (x in 1...size-1) {
-					var v = map2[y*size + x];
+					var v = map1[y*size + x];
 
 					for (i in 0...4 ) {
 						v += map1[(y+dy[i])*size + x+dx[i]];
@@ -556,6 +560,63 @@ class AIMap extends Base {
 		return {x: mn.x-1, y: mn.y-1};
 	}
 
+	static var RangedMassAttackDamage = [10,10,4,1];
+	static var RangedAttackDamageAverage = [10,10,6,4];
+	static var MeleeAttackDamage = 20; // Actually 30, but reduced slightly because they cannot attack multiple targets
+
+	public static function generatePotentialDamageMap () {
+		var map = createMap(MapSize);
+
+		var creeps : Array<Creep> = cast Game.getRoom("1-1").extract().find (HostileCreeps);
+
+		for (creep in creeps) {
+			if (!creep.my) {
+
+				var ranged = creep.getActiveBodyparts (RangedAttack);
+				var melee = creep.getActiveBodyparts (Attack);
+
+				trace("Found " + ranged + " " + melee);
+
+				if (ranged > 0) {
+					var range = 3;
+					for (dx in -range...range+1) {
+						var nx = creep.pos.x+dx;
+						if (nx >= 0 && nx < 50) {
+							for (dy in -range...range+1) {
+								var ny = creep.pos.y+dy;
+								if (ny >= 0 && ny < 50) {
+									var dist = Std.int(Math.max(Math.abs(dx), Math.abs(dy)));
+
+									addDeltaRoomPos (map, nx, ny, RangedAttackDamageAverage[dist] * ranged);
+								}
+							}
+						}
+					}
+				}
+
+				if (melee > 0) {
+					trace("Found melee attacker " + melee);
+					var range = 1;
+					for (dx in -range...range+1) {
+						var nx = creep.pos.x+dx;
+						if (nx >= 0 && nx < 50) {
+							for (dy in -range...range+1) {
+								var ny = creep.pos.y+dy;
+								if (ny >= 0 && ny < 50) {
+									addDeltaRoomPos (map, nx, ny, MeleeAttackDamage * melee);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		smooth (map, 1);
+
+		return map;
+	}
+
 	public function safeBuildingLocation () {
 		var map = createMap(MapSize);
 
@@ -625,7 +686,7 @@ class AIMap extends Base {
 			addDeltaRoomPos (map2, source.src.pos.x, source.src.pos.y, -1000);
 		}
 
-		smoothCross(map2, 1);
+		smooth(map2, 1);
 
 		for (workerPath in IDManager.manager.workerPaths) {
 			for (node in workerPath.path) {
@@ -634,7 +695,7 @@ class AIMap extends Base {
 		}
 
 		maskWithReplacement(map2, terrainMap, -1);
-
+		
 		smoothCross(map2, 1);
 
 		for (workerPath in IDManager.manager.workerPaths) {

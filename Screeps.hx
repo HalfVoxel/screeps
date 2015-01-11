@@ -17,8 +17,6 @@ class Screeps {
 
 	static public function main():Void {
 
-		
-
 		haxe.Timer.measure (function () { 
 			try {
 				//haxe.Timer.measure (function () { 
@@ -77,6 +75,19 @@ class Screeps {
 				}
 			}
 
+			var assignment = new Assignment ();
+
+			haxe.Timer.measure (function () { 
+				for (creep in IDManager.creeps) {
+					if (creep.src.my) {
+						creep.preprocessAssignment(assignment);
+					}
+				}
+			});
+
+			haxe.Timer.measure (assignment.run);
+			IDManager.manager.assignment = assignment;
+
 			for (creep in IDManager.creeps) {
 				if (creep.src.my) {
 					//var now = haxe.Timer.stamp();
@@ -91,5 +102,57 @@ class Screeps {
 				trace(i + ": " + (times[i]*1000) + " | " + (times[i]*1000/counts[i]));
 			}*/
 		//});
+	}
+}
+
+class Assignment {
+	
+	var seen : Array<AICreep> = [];
+	var seenPos : Array<Int> = [];
+	var seenPos2 : Array<{x:Int,y:Int}> = [];
+
+	var matrix = new Array<Array<Int>> ();
+	var result : Array<Array<Int>>;
+
+	public function add ( creep : AICreep, x : Int, y : Int, score : Int ) {
+		var idx1 = seen.indexOf (creep);
+		if (idx1 == -1) {
+			idx1 = seen.length;
+			seen.push(creep);
+		}
+
+		var idx2 = seenPos.indexOf(y*AIMap.MapSize + x);
+		if (idx2 == -1) {
+			idx2 = seenPos.length;
+			seenPos.push(y*AIMap.MapSize + x);
+			seenPos2.push({x:x, y:y});
+		}
+
+		var size = Std.int(Math.max(seen.length, seenPos.length));
+		if (matrix.length < size) {
+			while (matrix.length < size) matrix.push ([]);
+			for (i in 0...matrix.length) {
+				while (matrix[i].length < size) matrix[i].push(0);
+			}
+		}
+
+		matrix[idx1][idx2] = score;
+	}
+
+	public function getMatch ( creep : AICreep ) {
+		var idx1 = seen.indexOf(creep);
+		if (idx1 != -1) {
+			var idx2 = result[idx1][1];
+			if (idx2 < seenPos2.length && result[idx1][2] > 0) {
+				return seenPos2[idx2];
+			}
+		}
+		return null;
+	}
+
+	public function run () {
+		var mat = matrix;
+		result = untyped __js__ ("Hungarian.hungarianAlgortithm (mat)");
+		trace(result);
 	}
 }

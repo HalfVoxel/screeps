@@ -12,7 +12,7 @@ class AIManager {
 	public var pathfinder : AIPathfinder;
 	public var defence : AIDefenceManager;
 	public var statistics : AIStatistics;
-
+	public var assignment : Screeps.Assignment;
 	public var workerPaths : Array<WorkerPath>;
 
 	public function new () {}

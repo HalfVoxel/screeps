@@ -166,11 +166,15 @@ fs = require('fs');
 fs.readFile("decodein", 'utf8', function (err, data) {
 	var arr = THREE.Base64.toArrayOfFloats(data);
 	var size = Math.round(Math.sqrt(arr.length))|0;
-	var s = "[";
+	var s = "";
 	for (var i=0; i < arr.length; i+=size) {
-		s += arr.slice(i,i+size);
-		s += ";\n";
+		var sub = arr.slice(i,i+size);
+		for (var j=0; j < sub.length; j++) {
+			if (j != 0) s += ", ";
+			s += sub[j];
+		}
+		s += "\n";
 	}
-	s += "]";
+	s += "";
 	fs.writeFile("decodeout", s);
 });

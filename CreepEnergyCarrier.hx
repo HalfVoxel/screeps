@@ -64,6 +64,8 @@ class CreepEnergyCarrier extends AICreep {
 			var bestTransferFrom = null;
 			var largestEnergyAmount = 0;
 
+			var capacity = src.energyCapacity - src.energy;
+
 			for (ent in droppedEnergy) {
 				if (src.pos.isNearTo(ent.pos)) {
 					var energy : Energy = cast ent;
@@ -78,6 +80,7 @@ class CreepEnergyCarrier extends AICreep {
 			if (bestTransferFrom != null) {
 				trace ("Picking up " + largestEnergyAmount);
 				src.pickup (bestTransferFrom);
+				manager.statistics.onPickedEnergy (Std.int(Math.min (capacity, largestEnergyAmount)));
 			}
 		}
 
@@ -250,6 +253,8 @@ class CreepEnergyCarrier extends AICreep {
 				src.room.createFlag (src.pos.x,src.pos.y,id+"TX");
 				currentPath = null;
 				energyDelta -= amount;
+
+				manager.statistics.onCollectedEnergy (amount);
 
 				if (returning != Returning && returning != Collecting) returning = AutoCollecting;
 			}

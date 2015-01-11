@@ -61,10 +61,10 @@ class AISpawn extends Base {
 		],
 
 		[
-		{type: AICreep, role: Builder, body: [Move, Work, Work, Carry, Carry], category: Economy, advancedThreshold: 100, amountProportion: 0.1},
-		{type: AICreep, role: Builder, body: [Move, Work, Carry, Move, Work, Carry], category: Economy, advancedThreshold: 0, amountProportion: 0.1},
-		{type: AICreep, role: Builder, body: [Move, Work, Carry, Work, Move, Work, Carry], category: Economy, advancedThreshold: 0, amountProportion: 0.1},
-		{type: AICreep, role: Builder, body: [Move, Work, Carry, Move, Work, Move, Work, Carry], category: Economy, advancedThreshold: 0, amountProportion: 0.1}
+		{type: AICreep, role: Builder, body: [Move, Work, Work, Carry, Carry], category: Economy, advancedThreshold: 100, amountProportion: 0.2},
+		{type: AICreep, role: Builder, body: [Move, Work, Carry, Move, Work, Carry], category: Economy, advancedThreshold: 0, amountProportion: 0.2},
+		{type: AICreep, role: Builder, body: [Move, Work, Carry, Work, Move, Work, Carry], category: Economy, advancedThreshold: 0, amountProportion: 0.2},
+		{type: AICreep, role: Builder, body: [Move, Work, Carry, Move, Work, Move, Work, Carry], category: Economy, advancedThreshold: 0, amountProportion: 0.2}
 		]
 	];
 
@@ -199,6 +199,8 @@ class AISpawn extends Base {
 					creep.originalRole = creep.role = bestRole.role;
 					IDManager.queueAddCreep(name, creep);
 					trace("Spawning with name: " + name);
+
+					manager.statistics.onSpawning (bestRole);
 
 					if (bestRole.role == EnergyCarrier) {
 						manager.carrierNeeded = -5;//Math.round(manager.carrierNeeded*0.05);

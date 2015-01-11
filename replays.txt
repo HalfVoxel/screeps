@@ -9,3 +9,8 @@ http://screeps.com/g/#!/replay/54a9caf70a472ba64d1beef1?s=965713 3400+ (weird bu
 
 
 http://screeps.com/g/#!/replay/54b078030a472ba64d1bef60?s=543808 2700 (after mass attack)
+http://screeps.com/g/#!/replay/54b1c4ea0a472ba64d1bef82?s=542459 2650 (with hungarian)
+http://screeps.com/g/#!/replay/54b1d6980a472ba64d1bef83?s=593894 2880 (hungarian with tweaks)
+http://screeps.com/g/#!/replay/54b1edc50a472ba64d1bef84?s=778575 2930 (hungarian with more tweaks)
+
+

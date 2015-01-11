@@ -16,8 +16,8 @@ class AICreep extends Base {
 	public var currentDefencePosition : AIDefencePosition;
 	public var prevBestBuildSpot : RoomPosition;
 
-	static var dx = [1, 1, 0, -1, -1, -1, 0, 1];
-	static var dy = [0, 1, 1, 1, 0, -1, -1, -1];
+	public static var dx = [1, 1, 0, -1, -1, -1, 0, 1];
+	public static var dy = [0, 1, 1, 1, 0, -1, -1, -1];
 
 	var buildObstructed = 0;
 
@@ -30,12 +30,12 @@ class AICreep extends Base {
 
 	public override function onCreated () {
 		manager.modRoleCount(role, 1);
-		manager.statistics.registerCreated (role);
+		manager.statistics.onCreepCreated (role);
 	}
 
 	public override function onDestroyed () {
 		manager.modRoleCount(role, -1);
-		manager.statistics.registerDeath (role);
+		manager.statistics.onCreepDeath (role);
 	}
 
 	public override function tick () {
@@ -104,7 +104,6 @@ class AICreep extends Base {
 			if (!invalid) {
 				var score = (movementNearThis/8)*10 - 30*movementOnThis - Math.abs(nx - src.pos.x) - Math.abs(ny - src.pos.y);
 				if (prevBestBuildSpot != null && prevBestBuildSpot.x == nx && prevBestBuildSpot.y == ny && score > 0) {
-					trace("Found previous " + src.name + " " + ny + " " +nx);
 					score *= 2.0;
 				}
 
@@ -122,8 +121,8 @@ class AICreep extends Base {
 		bestLoc = options[0].loc;
 		
 		if (prevBestBuildSpot != null && (bestLoc.x != prevBestBuildSpot.x || bestLoc.y != prevBestBuildSpot.y)) {
-			trace("Switched spot: " + prevBestBuildSpot.x + ","+prevBestBuildSpot.y + " -> " + bestLoc.x +", " + bestLoc.y);
-			trace(options);
+			//trace("Switched spot: " + prevBestBuildSpot.x + ","+prevBestBuildSpot.y + " -> " + bestLoc.x +", " + bestLoc.y);
+			//trace(options);
 		}
 		prevBestBuildSpot = bestLoc;
 
@@ -230,7 +229,10 @@ class AICreep extends Base {
 
 		if (targetSource != null) {
 			if (src.pos.isNearTo(targetSource.src.pos)) {
-				src.harvest(targetSource.src);
+				switch (src.harvest(targetSource.src)) {
+					case Ok: manager.statistics.onMinedEnergy (src.getActiveBodyparts(Work)*2);
+					default:
+				}
 			} else {
 				switch (src.moveTo (targetSource.src, {heuristicWeight: 1})) {
 					case InvalidTarget|NoPath: buildObstructed++;
@@ -382,11 +384,161 @@ class AICreep extends Base {
 		}
 	}
 
+	static var RangedMassAttackDamage = [10, 10, 4, 1];
+	static var RangedAttackDamage = 10;
+
+	static function calculateRangedMassDamage ( pos : RoomPosition ) {
+		var damage = 0;
+		for (ent in pos.findInRange ( HostileCreeps, 3 )) {
+			var dist = RoomPosition.chebyshevDistance (pos, ent.pos);
+			damage += RangedMassAttackDamage[dist];
+		}
+		return damage;
+	}
+
+	public function preprocessAssignment ( assignment : Screeps.Assignment ) {
+
+		if (role != RangedAttacker) return;
+
+		var targets = src.pos.findInRange (HostileCreeps, 2);
+
+		if (targets.length > 0) {
+			var occ = new Array<Int>();
+			var occ2 = new Array<Int>();
+			var size = 2+2+1;
+			var offset = Math.floor(size/2);
+			for ( x in 0...size ) {
+				for ( y in 0...size ) {
+					occ.push(0);
+					occ2.push(0);
+				}
+			}
+
+			for (target in targets) {
+				var nx = (target.pos.x - src.pos.x) + offset;
+				var ny = (target.pos.y - src.pos.y) + offset;
+				occ[ny*size + nx] = 4;
+			}
+
+			for ( i in 0...4) {
+				for ( j in 0...occ2.length ) {
+					occ2[j] = 0;
+				}
+
+				for ( x in 0...size ) {
+					for ( y in 0...size ) {
+						occ2[y*size + x] = Math.round (Math.max (occ[y*size + x], occ2[y*size + x]));
+
+						for ( di in 0...dx.length) {
+							var nx = x + dx[di];
+							var ny = y + dy[di];
+							if (nx >= 0 && ny >= 0 && nx < size && ny < size ) {
+								occ2[ny*size + nx] = Math.round (Math.max (occ2[ny*size + nx], occ[y*size + x]-1));
+							}
+						}
+					}
+				}
+
+				var tmp = occ;
+				occ = occ2;
+				occ2 = tmp;
+			}
+
+			// result is in occ
+
+			for ( x in 0...size ) {
+				for ( y in 0...size ) {
+					var look = src.room.lookAt({x: x-offset+src.pos.x, y: y-offset+src.pos.y});
+					for ( lookItem in look ) {
+						if (lookItem.type == Terrain && lookItem.terrain == Wall ) {
+							occ[y*size + x] = 6;
+						}
+					}
+				}
+			}
+
+			var bestx = 0;
+			var besty = 0;
+			var bestScore = 1000;
+			var bestDist = 1000;
+
+			for ( x in 0...size ) {
+				for ( y in 0...size ) {
+					// Means out of range, we don't want that
+					if ( occ[y*size + x] == 0 ) occ[y*size + x] = 5;
+				}
+			}
+
+			for ( x in 0...size ) {
+				for ( y in 0...size ) {
+					var score = occ[y*size + x];
+
+					var dist = (x-offset)*(x-offset) + (y-offset)*(y-offset);
+					if (score < bestScore || (score == bestScore && dist < bestDist)) {
+						bestScore = score;
+						bestDist = dist;
+						bestx = x;
+						besty = y;
+					}
+				}
+			}
+
+			bestx -= offset;
+			besty -= offset;
+
+			if (bestScore < 5) {
+				var potentialDamageOnMe = AIMap.getRoomPos (manager.map.potentialDamageMap, src.pos.x + bestx, src.pos.y + besty);
+
+				assignment.add (this, src.pos.x + bestx, src.pos.y + besty, 100 + Std.int((5-bestScore) - potentialDamageOnMe));
+			}
+
+			for (nx in near1x) {
+				for (ny in near1y) {
+					var ox = nx + offset;
+					var oy = ny + offset;
+					var score = occ[oy*size + ox];
+					if (score >= 5 || score == 0) score = 0;
+					else score = 5 - score;
+
+					var healthFactor = 0.5 + (1 - (src.hits / src.hitsMax));
+					if (src.hits < src.hitsMax) healthFactor += 1;
+
+					var potentialDamageOnMe = healthFactor * AIMap.getRoomPos (manager.map.potentialDamageMap, src.pos.x + nx, src.pos.y + ny);
+
+					var rangedParts = src.getActiveBodyparts (RangedAttack);
+
+					var massDamage = rangedParts * calculateRangedMassDamage (src.room.getPositionAt(src.pos.x + nx, src.pos.y + ny));
+					var rangedDamage = score > 0 ? rangedParts * 10 : 0;
+
+					var finalScore = 500 + Std.int(Math.max(massDamage, rangedDamage) - potentialDamageOnMe);
+
+					//if (massDamage == 0 && rangedDamage == 0) finalScore -= 20;
+
+					//trace(src.pos.x + ":"+src.pos.y + " = " + (src.pos.x+nx) +", " + (src.pos.y+ny) + " : " + potentialDamageOnMe + " " + massDamage + " " + rangedDamage +" " + finalScore);
+					assignment.add (this, src.pos.x + nx, src.pos.y + ny, finalScore);
+
+					/*
+					if (massDamage > 10) {
+						assignment.add (this, src.pos.x + nx, src.pos.y + ny, massDamage);
+					} else if (score-bestScore <= 1) {
+						assignment.add (this, src.pos.x + nx, src.pos.y + ny, 10+(5-score));
+					}*/
+				}
+			}
+		}
+	}
+
 	function rangedAttacker () {
 
 		assignToDefences ();
 
 		var targets = src.pos.findInRange (HostileCreeps, 3);
+
+		var match = manager.assignment.getMatch(this);
+
+		if (match != null) {
+			//trace(match);
+		}
 
 		if (targets.length > 0) {
 			var occ = new Array<Int>();
@@ -480,22 +632,37 @@ class AICreep extends Base {
 				// Flee
 				moveToDefault ();
 			} else {
-				src.moveTo(bestx + src.pos.x, besty + src.pos.y, {heuristicWeight: 1});
+
+				if (match != null) {
+					src.moveTo(match.x, match.y, {heuristicWeight: 1});	
+				} else {
+					src.moveTo(bestx + src.pos.x, besty + src.pos.y, {heuristicWeight: 1});
+				}
 			}
 
-			if (src.pos.inRangeTo(target.pos, 3)) {
+			var potentialDamage = calculateRangedMassDamage (src.pos);
+
+			if (src.pos.inRangeTo(target.pos, 3) && RangedAttackDamage >= potentialDamage) {
 				src.rangedAttack(target);
+			} else {
+				src.rangedMassAttack();
 			}
 		} else {
 			if (src.hits <= src.hitsMax*0.6) {
 				// Flee
 				moveToDefault ();
 			} else {
-				switch (src.pos.findClosestHostileCreep ().option()) {
-					case Some(target): src.moveTo(target, {heuristicWeight: 1});
-					case None: {
-						moveToDefault ();
-						//src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
+
+				if (match != null) {
+					src.moveTo(match.x, match.y, {heuristicWeight: 1});	
+				} else {
+
+					switch (src.pos.findClosestHostileCreep ().option()) {
+						case Some(target): src.moveTo(target, {heuristicWeight: 1});
+						case None: {
+							moveToDefault ();
+							//src.moveTo(manager.map.getRegroupingPoint(id % manager.numRegroupingPoints));
+						}
 					}
 				}
 			}	
