@@ -13,7 +13,7 @@ class Healer extends AICreep {
 
 	public override function preprocessAssignment ( assignment : Screeps.Assignment ) {
 
-		if (role != RangedAttacker) return;
+		if (role != Healer) return;
 
 		var targets = IDManager.creeps;
 
@@ -39,23 +39,28 @@ class Healer extends AICreep {
 					var healthFraction = target.src.hits / target.src.hitsMax;
 
 					occ[ny*size + nx] = Math.max (occ[ny*size + nx], 1 - healthFraction*healthFraction);
+
+					if (target.role != Healer && target.role != RangedAttacker) {
+						occ[ny*size + nx] = 0;
+					}
+				} else {
+					occ[ny*size + nx] = 0;
 				}
 			}
 
 			for ( i in 0...1) {
 				for ( j in 0...occ2.length ) {
-					occ2[j] = 0;
+					//occ2[j] = 0;
+					occ2[j] = occ[j];
 				}
 
-				for ( x in 0...size ) {
-					for ( y in 0...size ) {
-						occ2[y*size + x] = Math.max (occ[y*size + x], occ2[y*size + x]);
-
+				for ( y in 0...size ) {
+					for ( x in 0...size ) {
 						for ( di in 0...AICreep.dx.length) {
 							var nx = x + AICreep.dx[di];
 							var ny = y + AICreep.dy[di];
 							if (nx >= 0 && ny >= 0 && nx < size && ny < size ) {
-								occ2[ny*size + nx] = Math.max (occ2[ny*size + nx], occ[y*size + x]-1);
+								occ2[ny*size + nx] = Math.max (occ2[ny*size + nx], occ[y*size + x]);
 							}
 						}
 					}

@@ -425,8 +425,8 @@ class AICreep extends Base {
 					occ2[j] = 0;
 				}
 
-				for ( x in 0...size ) {
-					for ( y in 0...size ) {
+				for ( y in 0...size ) {
+					for ( x in 0...size ) {
 						occ2[y*size + x] = Math.round (Math.max (occ[y*size + x], occ2[y*size + x]));
 
 						for ( di in 0...dx.length) {
@@ -446,8 +446,8 @@ class AICreep extends Base {
 
 			// result is in occ
 
-			for ( x in 0...size ) {
-				for ( y in 0...size ) {
+			for ( y in 0...size ) {
+				for ( x in 0...size ) {
 					var look = src.room.lookAt({x: x-offset+src.pos.x, y: y-offset+src.pos.y});
 					for ( lookItem in look ) {
 						if (lookItem.type == Terrain && lookItem.terrain == Wall ) {
@@ -462,15 +462,15 @@ class AICreep extends Base {
 			var bestScore = 1000;
 			var bestDist = 1000;
 
-			for ( x in 0...size ) {
-				for ( y in 0...size ) {
+			for ( y in 0...size ) {
+				for ( x in 0...size ) {
 					// Means out of range, we don't want that
 					if ( occ[y*size + x] == 0 ) occ[y*size + x] = 5;
 				}
 			}
 
-			for ( x in 0...size ) {
-				for ( y in 0...size ) {
+			for ( y in 0...size ) {
+				for ( x in 0...size ) {
 					var score = occ[y*size + x];
 
 					var dist = (x-offset)*(x-offset) + (y-offset)*(y-offset);

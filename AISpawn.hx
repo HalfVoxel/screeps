@@ -36,6 +36,7 @@ class AISpawn extends Base {
 
 		[
 		//{type: AICreep, role: MeleeAttacker, body: [Tough, Attack, Attack, Move, Attack], category: Military, advancedThreshold: 0, amountProportion: 1.2},
+		{type: AICreep, role: MeleeAttacker, body: [Tough, Tough, Tough, Tough, Tough, Tough, Move, Move, Move, Attack, Attack], category: Military, advancedThreshold: 0, amountProportion: 1.2},
 		//{type: AICreep, role: MeleeAttacker, body: [Tough, Move, Attack, Attack, Move, Attack], category: Military, advancedThreshold: 150, amountProportion: 1.2},
 		{type: AICreep, role: MeleeAttacker, body: [Tough, Move, Attack, Move, Attack, Attack, Attack], category: Military, advancedThreshold: 300, amountProportion: 0.2},
 		{type: AICreep, role: MeleeAttacker, body: [Tough, Move, Attack, Attack, Attack, Move, Move, Attack], category: Military, advancedThreshold: 300, amountProportion: 1.2}
@@ -48,7 +49,7 @@ class AISpawn extends Base {
 		[
 		//{type: AICreep, role: RangedAttacker, body: [Move, RangedAttack, RangedAttack, Move], category: Military, advancedThreshold: 0, amountProportion: 1.4},
 		{type: AICreep, role: RangedAttacker, body: [RangedAttack, RangedAttack, Move, RangedAttack, Move], category: Military, advancedThreshold: 0, amountProportion: 2.4},
-		{type: AICreep, role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack, Move, RangedAttack], category: Military, advancedThreshold: 0, amountProportion: 2.4},
+		//{type: AICreep, role: RangedAttacker, body: [Move, Move, RangedAttack, RangedAttack, Move, RangedAttack], category: Military, advancedThreshold: 0, amountProportion: 2.4},
 		{type: AICreep, role: RangedAttacker, body: [Tough, Move, Move, RangedAttack, RangedAttack, Move, RangedAttack], category: Military, advancedThreshold: 300, amountProportion: 2.4},
 		{type: AICreep, role: RangedAttacker, body: [Tough, Move, Move, RangedAttack, RangedAttack, Move, RangedAttack, RangedAttack], category: Military, advancedThreshold: 300, amountProportion: 2.4},
 		],
@@ -75,6 +76,16 @@ class AISpawn extends Base {
 
 	var highestHostileMilitaryScore = 0;
 
+	public function extensionNeeded ( body : Array<BodyPart> ) {
+		var counter = 0;
+		for (part in body) {
+			if (part != Tough) {
+				counter++;
+			}
+		}
+		return counter;
+	}
+
 	function getBestRole () {
 		var bestRole = roleTypes[0][0];
 		var bestRoleScore = -1000.0;
@@ -100,11 +111,11 @@ class AISpawn extends Base {
 			complexityScore *= 100000;
 		}
 
-		var maxBodyPartCount = 5;
+		var maxExtensions = 5;
 		for (entity in src.room.find(MyStructures)) {
 			var structure : Structure = cast entity;
 			if (structure.structureType == Extension && structure.energy >= 200) {
-				maxBodyPartCount++;
+				maxExtensions++;
 			}
 		}
 
@@ -116,7 +127,7 @@ class AISpawn extends Base {
 		var militaryTimeScore = Game.time/3000;
 
 		trace ("Spawning");
-		trace("Complexity score: " + complexityScore + " mx: " + maxBodyPartCount);
+		trace("Complexity score: " + complexityScore + " mx: " + maxExtensions);
 
 		if (IDManager.creeps.length > 0) {
 			for (roleGroup in roleTypes) {
@@ -125,7 +136,7 @@ class AISpawn extends Base {
 					var role = roleGroup[-i-1];
 
 					if (role.advancedThreshold > complexityScore) continue;
-					if (role.body.length > maxBodyPartCount) continue;
+					if (extensionNeeded (role.body) > maxExtensions) continue;
 
 					var score = 0.0;
 
