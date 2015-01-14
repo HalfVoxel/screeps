@@ -13,9 +13,9 @@ class Healer extends AICreep {
 
 	public override function preprocessAssignment ( assignment : Screeps.Assignment ) {
 
-		if (role != Healer) return;
-
 		var targets = IDManager.creeps;
+
+		var hostileTargets = src.pos.findInRange (HostileCreeps, 1);
 
 		if (targets.length > 0) {
 			var occ = new Array<Float>();
@@ -84,17 +84,35 @@ class Healer extends AICreep {
 				}
 			}
 
+			var anyNonZero = false;
+
 			for (nx in AICreep.near1x) {
 				for (ny in AICreep.near1y) {
 					var ox = nx + offset;
 					var oy = ny + offset;
 					var score = occ[oy*size + ox] * 80;
 					
+					if (AIMap.getRoomPos (manager.map.getTerrainMap(), src.pos.x + nx, src.pos.y + ny) < 0) {
+						continue;
+					}
+
+					var anyOnThisPosition = false;
+					for (target in hostileTargets) {
+						if (target.pos.x == src.pos.x+nx && target.pos.y == src.pos.y+ny) {
+							anyOnThisPosition = true;
+							break;
+						}
+					}
+					if (anyOnThisPosition) {
+						continue;
+					}
+
 					var potentialDamageOnMe = AIMap.getRoomPos (manager.map.potentialDamageMap, src.pos.x + nx, src.pos.y + ny);
 
 					var finalScore = 200 + Std.int(score - potentialDamageOnMe);
 
 					if (score == 0) finalScore -= 30;
+					else anyNonZero = true;
 
 					assignment.add (this, src.pos.x + nx, src.pos.y + ny, finalScore);
 
@@ -105,6 +123,10 @@ class Healer extends AICreep {
 						assignment.add (this, src.pos.x + nx, src.pos.y + ny, 10+(5-score));
 					}*/
 				}
+			}
+
+			if (!anyNonZero) {
+				assignment.clearAllFor (this);
 			}
 		}
 	}

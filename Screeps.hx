@@ -139,6 +139,15 @@ class Assignment {
 		matrix[idx1][idx2] = score;
 	}
 
+	public function clearAllFor ( creep : AICreep ) {
+		var idx1 = seen.indexOf (creep);
+		if (idx1 != -1) {
+			for (i in 0...matrix[idx1].length) {
+				matrix[idx1][i] = 0;
+			}
+		}
+	}
+
 	public function getMatch ( creep : AICreep ) {
 		var idx1 = seen.indexOf(creep);
 		if (idx1 != -1) {

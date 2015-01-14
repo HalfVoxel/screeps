@@ -359,7 +359,9 @@ class AICreep extends Base {
 
 		assignToDefences ();
 
-		if (attackTarget == null || RoomPosition.squaredDistance (src.pos, attackTarget.pos) < 4*4 || Game.time % 6 == id % 6) {
+		var match = manager.assignment.getMatch(this);
+
+		if (attackTarget == null || RoomPosition.squaredDistance (src.pos, attackTarget.pos) < 4*4 || (Game.time % 6) == (id % 6)) {
 			switch(src.pos.findClosestHostileCreep ().option()) {
 				case Some(target): {
 					attackTarget = target;
@@ -368,24 +370,32 @@ class AICreep extends Base {
 			}
 		}
 
+		if (match != null) {
+			src.moveTo (match.x, match.y);
+		}
+
 		if (attackTarget != null) {
-			if (src.hits <= src.hitsMax*0.6) {
-				trace("Flee!!");
-				moveToDefault ();
-			} else {
-				src.moveTo(attackTarget, {heuristicWeight: 1});
+
+			if (match == null) {
+				if (src.hits <= src.hitsMax*0.6) {
+					trace("Flee!!");
+					moveToDefault ();
+				} else {
+					src.moveTo(attackTarget, {heuristicWeight: 1});
+				}
 			}
 
 			if ( src.pos.isNearTo(attackTarget.pos)) {
 				src.attack(attackTarget);
 			}
-		} else {
+		} else if (match == null) {
 			moveToDefault ();
 		}
 	}
 
 	static var RangedMassAttackDamage = [10, 10, 4, 1];
 	static var RangedAttackDamage = 10;
+	static var MeleeAttackDamage = 30;
 
 	static function calculateRangedMassDamage ( pos : RoomPosition ) {
 		var damage = 0;
@@ -398,14 +408,74 @@ class AICreep extends Base {
 
 	public function preprocessAssignment ( assignment : Screeps.Assignment ) {
 
-		if (role != RangedAttacker) return;
+		if (role == RangedAttacker) {
+			preprocessAssignmentRanged ( assignment );
+		} else if ( role == MeleeAttacker ) {
+			preprocessAssignmentMelee ( assignment );
+		}
+	}
 
+	public function preprocessAssignmentMelee ( assignment : Screeps.Assignment ) {
 		var targets = src.pos.findInRange (HostileCreeps, 2);
+
+
+		var healthFactor = 0.5 + (1 - (src.hits / src.hitsMax));
+		if (src.hits < src.hitsMax) healthFactor += 0.5;
+
+		var anyNonZero = false;
+
+		for (nx in near1x) {
+			for (ny in near1y) {
+				var pos = src.room.getPositionAt (src.pos.x+nx, src.pos.y+ny);
+
+				if (AIMap.getRoomPos (manager.map.getTerrainMap(), src.pos.x + nx, src.pos.y + ny) < 0) {
+					continue;
+				}
+
+				var anyOnThisPosition = false;
+				for (target in targets) {
+					if (pos.equalsTo(target.pos)) {
+						anyOnThisPosition = true;
+						break;
+					}
+				}
+				if (anyOnThisPosition) {
+					continue;
+				}
+
+				var damage = 0;
+				for (target in targets) {
+					if (pos.equalsTo(target.pos)) {
+
+					}
+					if (pos.isNearTo (target.pos)) {
+						damage = src.getActiveBodyparts (Attack) * MeleeAttackDamage;
+						break;
+					}
+				}
+
+				var potentialDamageOnMe = healthFactor * AIMap.getRoomPos (manager.map.potentialDamageMap, src.pos.x + nx, src.pos.y + ny);
+
+				if (damage > 0) anyNonZero = true;
+
+				var finalScore = 500 + Std.int(damage - potentialDamageOnMe);
+
+				assignment.add (this, src.pos.x + nx, src.pos.y + ny, finalScore);
+			}
+		}
+
+		if (!anyNonZero) {
+			assignment.clearAllFor (this);
+		}
+	}
+
+	public function preprocessAssignmentRanged ( assignment : Screeps.Assignment ) {
+		var targets = src.pos.findInRange (HostileCreeps, 4);
 
 		if (targets.length > 0) {
 			var occ = new Array<Int>();
 			var occ2 = new Array<Int>();
-			var size = 2+2+1;
+			var size = 4+4+1;
 			var offset = Math.floor(size/2);
 			for ( x in 0...size ) {
 				for ( y in 0...size ) {
@@ -446,13 +516,17 @@ class AICreep extends Base {
 
 			// result is in occ
 
+			var terrainMap = manager.map.getTerrainMap();
 			for ( y in 0...size ) {
 				for ( x in 0...size ) {
-					var look = src.room.lookAt({x: x-offset+src.pos.x, y: y-offset+src.pos.y});
+					/*var look = src.room.lookAt({x: x-offset+src.pos.x, y: y-offset+src.pos.y});
 					for ( lookItem in look ) {
 						if (lookItem.type == Terrain && lookItem.terrain == Wall ) {
 							occ[y*size + x] = 6;
 						}
+					}*/
+					if (AIMap.getRoomPos (terrainMap, src.pos.x + x - offset, src.pos.y + y - offset) < 0) {
+						occ[y*size + x] = 6;
 					}
 				}
 			}
@@ -492,6 +566,11 @@ class AICreep extends Base {
 				assignment.add (this, src.pos.x + bestx, src.pos.y + besty, 100 + Std.int((5-bestScore) - potentialDamageOnMe));
 			}
 
+			var healthFactor = 0.5 + (1 - (src.hits / src.hitsMax));
+			if (src.hits < src.hitsMax) healthFactor += 1;
+
+			var anyNonZero = false;
+
 			for (nx in near1x) {
 				for (ny in near1y) {
 					var ox = nx + offset;
@@ -499,9 +578,6 @@ class AICreep extends Base {
 					var score = occ[oy*size + ox];
 					if (score >= 5 || score == 0) score = 0;
 					else score = 5 - score;
-
-					var healthFactor = 0.5 + (1 - (src.hits / src.hitsMax));
-					if (src.hits < src.hitsMax) healthFactor += 1;
 
 					var potentialDamageOnMe = healthFactor * AIMap.getRoomPos (manager.map.potentialDamageMap, src.pos.x + nx, src.pos.y + ny);
 
@@ -511,6 +587,10 @@ class AICreep extends Base {
 					var rangedDamage = score > 0 ? rangedParts * 10 : 0;
 
 					var finalScore = 500 + Std.int(Math.max(massDamage, rangedDamage) - potentialDamageOnMe);
+
+					if (massDamage > 0 || rangedDamage > 0) {
+						anyNonZero = true;
+					}
 
 					//if (massDamage == 0 && rangedDamage == 0) finalScore -= 20;
 
@@ -524,6 +604,10 @@ class AICreep extends Base {
 						assignment.add (this, src.pos.x + nx, src.pos.y + ny, 10+(5-score));
 					}*/
 				}
+			}
+
+			if (!anyNonZero) {
+				assignment.clearAllFor (this);
 			}
 		}
 	}

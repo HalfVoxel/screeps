@@ -34,7 +34,7 @@ class AIStatistics extends Base {
 			case Attack: 80;
 			case RangedAttack: 150;
 			case Heal: 200;
-			case Tough: 5;
+			case Tough: 20;
 		}
 	}
 
@@ -47,8 +47,8 @@ class AIStatistics extends Base {
 			cost += getBodyPartCost(part);
 		}
 		
-		if (body.length > NoExtensionsLimit) {
-			cost += ExtensionsCost * (body.length - NoExtensionsLimit);
+		if (AISpawn.extensionNeeded(body) > NoExtensionsLimit) {
+			cost += ExtensionsCost * (AISpawn.extensionNeeded(body) - NoExtensionsLimit);
 		}
 		return cost;
 	}

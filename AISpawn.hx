@@ -76,7 +76,7 @@ class AISpawn extends Base {
 
 	var highestHostileMilitaryScore = 0;
 
-	public function extensionNeeded ( body : Array<BodyPart> ) {
+	public static function extensionNeeded ( body : Array<BodyPart> ) {
 		var counter = 0;
 		for (part in body) {
 			if (part != Tough) {

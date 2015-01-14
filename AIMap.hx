@@ -330,6 +330,12 @@ class AIMap extends Base {
 							score += 10;
 						}
 					}
+					if (item.type == Exit) {
+						score = -1;
+
+						// Nuff said
+						break;
+					}
 				}
 
 				setRoomPos(map, x, y, score);
