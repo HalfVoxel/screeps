@@ -58,7 +58,7 @@ class AIMap extends Base {
 		
 		if (movementPatternMap == null) movementPatternMap = createMap(MapSize);
 		if (movementPatternMapSlow == null) movementPatternMapSlow = createMap(MapSize);
-
+		if (terrainMap == null) getTerrainMap ();
 		if (tmpMap == null) tmpMap = createMap(MapSize);
 
 		for (creep in IDManager.creeps) {
@@ -82,7 +82,7 @@ class AIMap extends Base {
 
 		potentialDamageMap = generatePotentialDamageMap ();
 
-		if (Game.time % 20 == 0) {
+		if (Game.time % 20 == 3) {
 			var room = Game.getRoom("1-1").extract();
 			regroupingMap = haxe.Timer.measure (function () { return generateRegroupingMap (room);});
 		}
@@ -314,9 +314,11 @@ class AIMap extends Base {
 	public function generateTerrainMap ( room : Room ) {
 		var map = createMap (MapSize);
 
+		var tiles = room.lookAtArea (0, 0, Room.Height-1, Room.Width-1);
+
 		for (y in 0...Room.Width) {
 			for (x in 0...Room.Height) {
-				var res = room.lookAt({x: x,y: y});
+				var res = tiles[y][x];
 				var score = 0.0;
 				for (item in res) {
 					if (item.type == Terrain) {
