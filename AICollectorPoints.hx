@@ -624,7 +624,7 @@ class AICollectorPoints extends Base {
 					mean = mean + new Vector2(node.x,node.y);
 				}
 
-				comp.mean = Vector2.multiplyScalar (1.0/ls.length, mean);
+				comp.mean = Vector2.multiply (mean, 1.0/ls.length);
 
 				// Check if the first node can see the last node
 				if (assume1D) comp.closed = comp.nodes[0].conns.indexOf(comp.nodes[comp.nodes.length-1]) != -1;
