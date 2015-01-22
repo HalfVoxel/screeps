@@ -50,7 +50,7 @@ class AIManager {
 			}
 		}
 
-		if (workerPaths == null || workerPaths.length == 0) {
+		if ((workerPaths == null || workerPaths.length == 0) && IDManager.spawns.length > 0) {
 			if (workerPaths != null) for (path in workerPaths) path.destroy ();
 
 			workerPaths = new Array<WorkerPath>();

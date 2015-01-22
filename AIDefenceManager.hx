@@ -44,9 +44,9 @@ class AIDefenceManager extends Base {
 				}
 			}
 
-			trace(exits);
+			//trace(exits);
 			var points = AICollectorPoints.findUntil(exits, manager.map.getTerrainMap(), function (p : Point) { return p.f == 5; }, 100000, false );
-			trace(points);
+			//trace(points);
 
 			var nodeResults = points.map (function (p) { return new CNode (p.x, p.y, p.f, p.root); });
 			
