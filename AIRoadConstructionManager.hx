@@ -19,7 +19,7 @@ class AIRoadConstructionManager extends Base {
 		var room = Game.getRoom("1-1").extract();
 
 		// We start with lots of energy, to avoid building extensions at the start, do this
-		var earlyScore = Game.time < 100 ? 50 : 0;
+		var earlyScore = IDManager.timeSinceStart < 100 ? 50 : 0;
 
 		var constructionSiteScore = IDManager.constructionSites.length*10;
 

@@ -13,8 +13,12 @@ class IDManager {
 	public static var energy 			= new Array<AIEnergy>();
 	public static var constructionSites = new Array<AIConstructionSite>();
 
-	public static var structures : Array<Structure> = new Array<Structure>();
+	public static var allCreeps	: Array<Creep>		= null;
+	public static var hostileCreeps	: Array<Creep>	= null;
+	public static var droppedEnergy : Array<Energy> = null;
 
+	public static var structures : Array<Structure> = new Array<Structure>();
+	public static var timeSinceStart : Int = 0;
 	
 
 	public static var loadedObjects : Array<Base>;
@@ -25,14 +29,31 @@ class IDManager {
 
 	public static function tick () {
 
-		if (Game.time == 0) {
+		if (Memory["lastGameTime"] == null || Game.time - Memory["lastGameTime"] > 10) {
+			trace ("Found discontinuity in time. Assuming new game has been loaded. " + Memory["lastGameTime"] + " -> " + Game.time);
+
 			trace("Clearing old data...");
 			Memory["counter"] = 0;
 			Memory["objects"] = null;
 			Memory["refmap"] = null;
 			Memory["manager"] = null;
 			Memory["creepQueue"] = null;
+			Memory["arrays"] = null;
+			Memory["gameStartTime"] = Game.time;
+			Memory["refmap"] = null;
+
+		} else if (Game.time - Memory["lastGameTime"] > 1) {
+			trace ("======= SKIPPED " + (Game.time - Memory["lastGameTime"] - 1) + " FRAMES =======");
 		}
+
+		if (Memory["gameStartTime"] == null) {
+			Memory["gameStartTime"] = Game.time;
+			trace ("Found no definition of gameStartTime");
+		}
+
+		timeSinceStart = Game.time - Memory["gameStartTime"];
+
+		Memory["lastGameTime"] = Game.time;
 
 		// Load ID counter
 		if ( Memory["counter"] == null ) {
@@ -71,8 +92,8 @@ class IDManager {
 		}
 		for (key in toRemove) creepQueue.remove(key);
 
-		var room = Game.getRoom ("1-1").extract();
 		// Hacky way to find the current room
+		var room = Game.getFirstRoom();
 
 		var toDestroy = new Array<Base>();
 
@@ -80,8 +101,8 @@ class IDManager {
 			var ent : Base = cast obj;
 
 			// Right now, ids have not been deserialized, so we have to do this
-			var linkStr : String = cast ent.linked;
-			var destroyed = bySCID (linkStr != null ? cast linkStr.substring(1,linkStr.length) : null).isNone();
+			var linkStr : String = ent.linked != null ? (cast ent.linked).substring(1) : null;
+			var destroyed = bySCID (linkStr).isNone();
 
 			var ent : Base = Type.createInstance (Type.resolveClass (ent.type), []);
 			
@@ -151,6 +172,9 @@ class IDManager {
 		}
 
 		structures = cast room.find(Structures);
+		allCreeps = cast room.find (Creeps);
+		hostileCreeps = cast room.find (HostileCreeps);
+		droppedEnergy = cast room.find (DroppedEnergy);
 
 		// Process construction sites and create objects for them if none exists
 		for (obj in room.find(ConstructionSites)) {
@@ -169,32 +193,91 @@ class IDManager {
 	static function rewriteForSerialization (obj : Dynamic) {
 		untyped __js__("
 
+		var rec3 = function (arr) {
+			if (arr.length == 0 || typeof arr[0] == 'number') {
+				return {data: arr, key: null};
+			}
+
+			var arr2 = [];
+			var conversion = null;
+			for (var i = 0; i < arr.length; i++) {
+				var val = arr[i];
+	    		if (val != null) {
+					if (val.hasOwnProperty('id')) {
+						if (typeof(val.id) == 'string') {
+							conversion = 'a';
+							arr2.push (val.id);
+						} else {
+							conversion = 'b';
+							arr2.push (val.id);
+						}
+					} else if (val instanceof Array && val.length > 20 && typeof(val[0]) == 'number') {
+
+						var buffer = new ArrayBuffer(val.length*4);
+						var floatBuffer = new Float32Array(buffer);
+						for (var i = 0; i < val.length; i++ ) {
+							floatBuffer[i] = val[i];
+						}
+
+						conversion = 'c';
+						arr2.push (THREE.Base64.fromArrayBuffer(buffer));
+					} else if (val instanceof Float32Array) {
+						var encoded = THREE.Base64.fromArrayBuffer(val.buffer);
+						arr2.push (encoded);
+						conversion = 'd';
+					} else if (typeof(val) == 'object') {
+						rec(val);
+						arr2.push (val);
+					}
+				} else {
+					arr2.push (null);
+				}
+			}
+			return {data: arr2, key: conversion};
+		};
+
+		var rec2 = function (obj, key) {
+			if ( obj.hasOwnProperty(key)) {
+
+	    		var val = obj[key];
+	    		if (val != null) {
+					if (val.hasOwnProperty('id')) {
+						if (typeof(val.id) == 'string') {
+							obj['a_'+key] = val.id;
+							obj[key] = null;
+						} else {
+							obj['b_'+key] = val.id;
+							obj[key] = null;
+						}
+					} else if (val instanceof Array && val.length > 20 && typeof(val[0]) == 'number') {
+
+						var buffer = new ArrayBuffer(val.length*4);
+						var floatBuffer = new Float32Array(buffer);
+						for (var i = 0; i < val.length; i++ ) {
+							floatBuffer[i] = val[i];
+						}
+						obj['c_'+key] = THREE.Base64.fromArrayBuffer(buffer);
+						obj[key] = null;
+					} else if (val instanceof Float32Array) {
+						var encoded = THREE.Base64.fromArrayBuffer(val.buffer);
+						obj['d_'+key] = encoded;
+						obj[key] = null;
+					} else if (val instanceof Array) {
+						var info = rec3 (val);
+						if (info.key != null) {
+							obj[info.key+'_'+key] = info.data;
+							obj[key] = null;
+						}
+					} else if (typeof(val) == 'object') {
+						rec(val);
+					}
+				}
+		    }
+		}
 		var rec;
 		rec = function (obj) {
 			for (var key in obj) {
-		    	if ( obj.hasOwnProperty(key)) {
-
-		    		var val = obj[key];
-		    		if (val != null) {
-						if (val.hasOwnProperty('id')) {
-							if (typeof(val.id) == 'string') {
-								obj[key] = '#' + val.id;
-							} else {
-								obj[key] = '@' + val.id;
-							}
-						} else if (val instanceof Array && val.length > 20 && typeof(val[0]) == 'number') {
-
-							var buffer = new ArrayBuffer(val.length*4);
-							var floatBuffer = new Float32Array(buffer);
-							for (var i = 0; i < val.length; i++ ) {
-								floatBuffer[i] = val[i];
-							}
-							obj[key] = '+' + THREE.Base64.fromArrayBuffer(buffer);
-						} else if (typeof(val) == 'object') {
-							rec(val);
-						}
-					}
-			    }
+		    	rec2(obj, key);
 			}
 	    };
 	    rec(obj);
@@ -204,29 +287,88 @@ class IDManager {
 	static function rewriteForDeserialization (obj : Dynamic) {
 		untyped __js__("
 
+		var rec2 = function (arr, id) {
+
+			if (arr.length == 0 || typeof arr[0] == 'number') {
+				return arr;
+			}
+
+			var arr2 = [];
+			if ( id == 'a' ) {
+				for (var i=0; i < arr.length; i++)
+					// Screeps ref
+					arr2.push (IDManager.bySCID(arr[i]));
+			} else if ( id == 'b' ) {
+				for (var i=0; i < arr.length; i++)
+					// Screeps ref
+					arr2.push (IDManager.byID(arr[i]));
+			} else if ( id == 'c') {
+				for (var i=0; i < arr.length; i++)
+					arr2.push (THREE.Base64.toArrayOfFloats (arr[i]));
+			} else if ( id == 'd') {
+				for (var i=0; i < arr.length; i++) {
+					var buffer = THREE.Base64.toArrayBuffer (arr[i]);
+					arr2.push (new Float32Array(buffer));
+				}
+			}
+			return arr2;
+		};
+
+		var rec3 = function (obj, key) {
+    		/*var val = obj[key];
+    		if (val != null) {
+
+    			if (key[1] == '_') {
+
+    				var id = key[0];
+	    			var newName = key.substring(2);
+
+    				if (val instanceof Array) {
+    					obj[newName] = rec2 (val, id);
+    				} else {
+		    			if ( id == 'a' ) {
+		    				// Screeps ref
+							obj[newName] = IDManager.bySCID(val);
+						} else if ( id == 'b' ) {
+							// Our ref
+							obj[newName] = IDManager.byID(val);
+						} else if ( id == 'c') {
+							obj[newName] = THREE.Base64.toArrayOfFloats (val);
+						} else if ( id == 'd') {
+							var buffer = THREE.Base64.toArrayBuffer (val);
+							obj[newName] = new Float32Array(buffer);
+						}
+					}
+					obj[key] = null;
+				} else if (typeof(val) == 'object') {
+					rec(val);
+				}
+			}*/
+
+		   var val = obj[key];
+		   if (val != null) {
+
+			   if (typeof(val) == 'string') {
+					if (val[0] == '#') {
+						// Screeps ref
+						obj[key] = IDManager.bySCID(val.substring(1));
+					} else if ( val[0] == '@' ) {
+						// Our ref
+						obj[key] = IDManager.byID(parseInt(val.substring(1)));
+					} else if ( val[0] == '%' ) {
+						obj[key] = Memory['arrays'][parseInt(val.substring(1))];
+					}
+			   } else if (typeof(val) == 'object') {
+					rec(val);
+			   }
+			}
+		}
 		var rec;
 		rec = function (obj) {
 			for (var key in obj) {
-		    	if ( obj.hasOwnProperty(key)) {
-
-		    		var val = obj[key];
-		    		if (val != null) {
-
-		    			if (typeof(val) == 'string') {
-			    			if (val[0] == '#') {
-			    				// Screeps ref
-								obj[key] = IDManager.bySCID(val.substring(1,val.length));
-							} else if ( val[0] == '@' ) {
-								// Our ref
-								obj[key] = IDManager.byID(parseInt(val.substring(1,val.length)));
-							} else if ( val[0] == '+') {
-								obj[key] = THREE.Base64.toArrayOfFloats (obj[key].substring(1,val.length));
-							}
-						} else if (typeof(val) == 'object') {
-							rec(val);
-						}
-					}
-			    }
+				if ( obj.hasOwnProperty(key)) {
+					rec3 (obj, key);
+				}
 			}
 	    };
 	    rec(obj);
@@ -245,30 +387,79 @@ class IDManager {
 	    return to;
 	}
 
+	public static function replacer (key : Dynamic, obj : Dynamic) : Dynamic {
+		untyped __js__ ("
+		if (obj != null) {
+			if (obj.hasOwnProperty('id') && key != '') {
+				if (typeof obj.id == 'string') {
+					return '#' + obj.id;
+				} else {
+					return '@' + obj.id;
+				}
+			} else if (obj.length != undefined && obj.length > 20 && typeof obj[0] == 'number') {
+				Memory['arrays'].push (obj);
+				Memory['arrayContext'].push (key);
+				return '%' + (Memory['arrays'].length-1);
+			}
+		}
+		");
+		return obj;
+	}
+
+	public static function reviewer (key : Dynamic , obj : Dynamic ) : Dynamic  {
+		untyped __js__ ("
+			if (typeof obj == 'string') {
+				if (obj[0] == '+') {
+					return byID (parseInt(obj));
+				} else {
+					return bySCID (obj);
+				}
+			}
+		");
+		return obj;
+	}
+
 	public static function tickEnd () {
 
 		
 		Memory["refmap"] = objs2ref;
+		Memory["objects"] = null;
+		Memory["manager"] = null;
+		Memory["creepQueue"] = null;
+		Memory['arrays'] = [];
+		Memory['arrayContext'] = [];
+
+		manager.map.movementPatternMap = null;
+		manager.pathfinder.costs = null;
+		manager.map.potentialDamageMap = null;
+		IDManager.manager.assignment = null;
+
+		var t1 = haxe.Timer.stamp();
 
 		var objects = new Array<Dynamic>();
 		for (obj in loadedObjects) {
 			obj.manager = untyped __js__("undefined");
 
-			rewriteForSerialization(obj);
-			objects.push(obj);
+			//rewriteForSerialization(obj);
+			objects.push(haxe.Json.parse (haxe.Json.stringify (obj, replacer)));
 		}
 
-		for (obj in creepQueue) {
+		for (key in creepQueue.keys()) {
+			var obj = creepQueue[key];
 			obj.manager = untyped __js__("undefined");
-			rewriteForSerialization(obj);
+			creepQueue[key] = haxe.Json.parse (haxe.Json.stringify (obj, replacer));
+			//rewriteForSerialization(obj);
 		}
 
 		Memory["creepQueue"] = creepQueue;
 
-		Memory["objects"] = haxe.Json.parse (haxe.Json.stringify (objects));
+		
+		Memory["objects"] = objects;
+		Memory["manager"] = haxe.Json.parse (haxe.Json.stringify (manager, replacer));
 
-		rewriteForSerialization(manager);
-		Memory["manager"] = haxe.Json.parse (haxe.Json.stringify (manager));
+		//trace ("JSONifying took " + (haxe.Timer.stamp() - t1)*1000);
+		//rewriteForSerialization(manager);
+		
 		//trace(objects);
 	}
 

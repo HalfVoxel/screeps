@@ -47,7 +47,7 @@ class AIMap extends Base {
 	}
 
 	public static function addMap (map : Array<Float>, add : Array<Float>, factor : Float) {
-		if (map.length != add.length) throw "Map dimensions must match";
+		if (map.length != add.length) throw "Map dimensions must match\n"+haxe.CallStack.callStack();
 
 		for (i in 0...map.length) {
 			map[i] += add[i]*factor;
@@ -69,7 +69,7 @@ class AIMap extends Base {
 						addDeltaRoomPos (movementPatternMap, pos.x, pos.y, 100);
 
 						if (creep.src.fatigue > 0) {
-							addDeltaRoomPos (movementPatternMapSlow, pos.x, pos.y, 100);
+							addDeltaRoomPos (movementPatternMapSlow, pos.x, pos.y, 50);
 						}
 					}
 					default:
@@ -78,7 +78,7 @@ class AIMap extends Base {
 		}
 
 		decay(movementPatternMap, 0.97);
-		decay(movementPatternMapSlow, 0.97);
+		decay(movementPatternMapSlow, 0.985);
 
 		potentialDamageMap = generatePotentialDamageMap ();
 
@@ -145,6 +145,43 @@ class AIMap extends Base {
 		}
 	}
 
+	public static function smoothBox (map : Array<Float>, iterations : Int ) {
+
+		var map1 = map;
+		var map2 = tmpMap;
+
+		var size : Int = Std.int(Math.sqrt(map.length));
+
+		for (it in 0...iterations) {
+
+			for (y in 1...size-1) {
+				for (x in 1...size-1) {
+					var v = 0.0;
+
+					for (i in -1...2 ) {
+						v += map1[y*size + x+i];
+					}
+
+					map2[y*size + x] = v;
+				}
+			}
+
+			for (y in 1...size-1) {
+				for (x in 1...size-1) {
+					var v = 0.0;
+
+					for (i in -1...2 ) {
+						v += map2[(y+i)*size + x];
+					}
+
+					v /= 9;
+
+					map1[y*size + x] = v;
+				}
+			}
+		}
+	}
+
 	public static function smooth (map : Array<Float>, iterations : Int ) {
 		// Copy
 
@@ -152,6 +189,45 @@ class AIMap extends Base {
 
 		var map1 = map;
 		var map2 = tmpMap;
+
+		var gauss = [];
+		var kernelSize = iterations*2 + 1;
+
+		// Approximates a box filter with the same iterations
+		var sigma = kernelSize*0.182;
+
+		for (i in 0...kernelSize) {
+			var x = i - iterations;
+			gauss.push ((1/Math.sqrt(2*Math.PI*sigma*sigma))*Math.exp(-(x*x)/(2*sigma*sigma)));
+		}
+	
+		var size : Int = Std.int(Math.sqrt(map.length));
+
+		for (y in 1...size-1) {
+			for (x in 1...size-1) {
+				var v = 0.0;
+
+				for (i in Std.int(Math.max(x-iterations,0))...Std.int(Math.min(x+iterations+1,size-1)) ) {
+					v += map1[y*size + i]*gauss[i-x+iterations];
+				}
+
+				map2[y*size + x] = v;
+			}
+		}
+
+		for (y in 1...size-1) {
+			for (x in 1...size-1) {
+				var v = 0.0;
+
+				for (i in Std.int(Math.max(y-iterations,0))...Std.int(Math.min(y+iterations+1,size-1)) ) {
+					v += map2[i*size + x]*gauss[i-y+iterations];
+				}
+
+				map1[y*size + x] = v;
+			}
+		}
+
+		/*
 
 		var size : Int = Std.int(Math.sqrt(map.length));
 
@@ -187,7 +263,7 @@ class AIMap extends Base {
 			//var tmp = map1;
 			//map1 = map2;
 			//map2 = tmp;
-		}
+		}*/
 	}
 
 	public static function smoothWithMask (map : Array<Float>, iterations : Int, mask : Array<Float> ) {
@@ -295,7 +371,9 @@ class AIMap extends Base {
 				map.push(0);
 			}
 		}
-		return map;
+		//var map = new js.html.Float32Array(size*size);
+		
+		return cast map;
 	}
 
 	public static function convertToString ( map : Array<Float> ) {
@@ -319,7 +397,9 @@ class AIMap extends Base {
 		for (y in 0...Room.Width) {
 			for (x in 0...Room.Height) {
 				var res = tiles[y][x];
-				var score = 0.0;
+
+				// Default cost
+				var score = 2;
 				for (item in res) {
 					if (item.type == Terrain) {
 						if (item.terrain == Wall) {
@@ -329,7 +409,7 @@ class AIMap extends Base {
 							break;
 						}
 						if (item.terrain == Swamp) {
-							score += 10;
+							score = 10;
 						}
 					}
 					if (item.type == Exit) {
@@ -360,11 +440,14 @@ class AIMap extends Base {
 	}
 
 	public function generateRegroupingMap ( room : Room ) {
+
+		Profiler.start ("generateRegroupingMap");
+
 		var map;
 		//if (regroupingMap != null) {
 		//	map = regroupingMap;
 		//} else {
-			map = createMap (MapSize);
+		map = createMap (MapSize);
 		//}
 
 		zero (map);
@@ -455,7 +538,7 @@ class AIMap extends Base {
 		}
 		//trace("Placing flag at " + (pos.x-1)  + " " + (pos.y-1));
 
-		
+		Profiler.stop ();
 
 		return map;
 	}
@@ -534,7 +617,7 @@ class AIMap extends Base {
 				map2[i] = 200;
 			}
 		}
-		smooth(map2, 1);
+		smoothBox(map2, 1);
 
 		for (i in 0...terrainMap.length) {
 			if (terrainMap[i] == -1) {
@@ -620,7 +703,7 @@ class AIMap extends Base {
 			}
 		}
 
-		smooth (map, 1);
+		smoothBox (map, 1);
 
 		return map;
 	}
@@ -658,7 +741,7 @@ class AIMap extends Base {
 				map[i] = -1000;
 			}
 		}*/
-		smooth(map2, 1);
+		smoothBox(map2, 1);
 
 		for (i in 0...terrainMap.length) {
 			if (terrainMap[i] == -1) {
@@ -682,7 +765,7 @@ class AIMap extends Base {
 			addDeltaRoomPos (map2,structure.src.pos.x,structure.src.pos.y, 10000);
 		}
 
-		smooth (map2, 1);
+		smoothBox (map2, 1);
 
 		addMap (map, map2, 1);
 
@@ -694,7 +777,7 @@ class AIMap extends Base {
 			addDeltaRoomPos (map2, source.src.pos.x, source.src.pos.y, -1000);
 		}
 
-		smooth(map2, 1);
+		smoothBox(map2, 1);
 
 		for (workerPath in IDManager.manager.workerPaths) {
 			for (node in workerPath.path) {

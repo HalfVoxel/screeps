@@ -103,7 +103,7 @@ class AISpawn extends Base {
 
 		var complexityScore = manager.getComplexityScore ();
 
-		var sourceSlots = Lambda.fold (IDManager.sources, function(s,acc) { return s.maxAssignedCount + acc; }, 0);// src.room.find(Sources).length;
+		var sourceSlots = Lambda.fold (IDManager.sources, function(s,acc) { return s.sustainabilityFactor >= 0.8 ? s.maxAssignedCount + acc : s.assigned.length + acc; }, 0);// src.room.find(Sources).length;
 
 		
 		// We got lots of energy, do whatever
@@ -124,11 +124,8 @@ class AISpawn extends Base {
 			energyNeededForConstruction += site.src.progressTotal - site.src.progress;
 		}
 
-		var militaryTimeScore = Game.time/3000;
-
-		trace ("Spawning");
-		trace("Complexity score: " + complexityScore + " mx: " + maxExtensions);
-
+		var militaryTimeScore = 0;//Game.time/3000;
+		
 		if (IDManager.creeps.length > 0) {
 			for (roleGroup in roleTypes) {
 				// Iterating backwards to break ties in favour of higher leveled units
@@ -165,12 +162,13 @@ class AISpawn extends Base {
 						score += 1;
 					}
 
-					if (role.role == Harvester && manager.getRoleCount(role.role) < sourceSlots && hostileMilitary == 0) {
+					if (role.role == Harvester && manager.getRoleCount(Harvester) < sourceSlots && hostileMilitary == 0) {
 						score += 1 * (1/300) * complexityScore;
 					}
 
 					// Too many harvesters
-					if (role.role == Harvester && manager.getRoleCount(role.role) >= sourceSlots) score *= 0.25;
+					if (role.role == Harvester && manager.getRoleCount(Harvester) >= sourceSlots) score *= 0.25;
+					if (role.role == Harvester && manager.getRoleCount(Harvester) >= sourceSlots*0.8) score *= 0.7;
 
 					if (role.role == EnergyCarrier) {
 						score += manager.carrierNeeded*0.08;// / manager.getRoleCount(Harvester);

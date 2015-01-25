@@ -31,7 +31,7 @@ class AISource extends AIAssigned {
 			// Lerp with t=0.2
 			sustainabilityFactor = sustainabilityFactor*0.8 + 0.2*Math.min (Math.max ((sustainable / src.energyCapacity)+1, 0.05), 2);
 
-			trace(sustainable + " " + sustainabilityFactor);
+			//trace(sustainable + " " + sustainabilityFactor);
 
 			prevEnergy = src.energy;
 		}

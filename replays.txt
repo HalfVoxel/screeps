@@ -14,3 +14,5 @@ http://screeps.com/g/#!/replay/54b1d6980a472ba64d1bef83?s=593894 2880 (hungarian
 http://screeps.com/g/#!/replay/54b1edc50a472ba64d1bef84?s=778575 2930 (hungarian with more tweaks)
 http://screeps.com/g/#!/replay/54b47ee70a472ba64d1befac?s=448041 2930 (well...)
 
+http://screeps.com/a/#!/replay/54c40663365e6dea5ca77486?s=396275 29xx (after performance optimizations)
+

@@ -122,8 +122,6 @@ class AICollectorPoints extends Base {
 
 			var totCost = 0.0;
 
-			if (haxe.Timer.stamp () - startTime > 0.3) throw "Killed here";
-
 			var pathto = pathfinder.findPath (spawn.src.pos, stack[0], true , costs );
 			if (pathto == null) return null;
 
@@ -134,8 +132,6 @@ class AICollectorPoints extends Base {
 			paths.push(pathto.map(state2vec2));
 
 			var last = stack[0];
-
-			if (haxe.Timer.stamp () - startTime > 0.3) throw "Killed here";
 
 			for (node in stack) {
 
@@ -181,8 +177,6 @@ class AICollectorPoints extends Base {
 				paths.push (vecpath);
 			}
 
-			if (haxe.Timer.stamp () - startTime > 0.3) throw "Killed here";
-
 			//var pathfrom = pathfinder.findPath (last, spawn.src.pos, true , costs );
 			//totCost += pathfinder.sumCost (pathfrom, costs);
 			//addDeltaPath (costs, pathfrom, 20);
@@ -204,8 +198,6 @@ class AICollectorPoints extends Base {
 			} else {
 				//trace ((pathto != null) + " " + (pathfrom != null));
 			}
-
-			if (haxe.Timer.stamp () - startTime > 0.3) throw "Killed here";
 
 			if (!invalid) {
 				return {cost: totCost, data: paths};
@@ -229,7 +221,7 @@ class AICollectorPoints extends Base {
 			}
 
 			// Only check for combinations of at most 2 elements
-			if (cnt > 2) continue;
+			if (cnt > 1) continue;
 
 			// Closed components are left by themselves
 			if (anyClosed && cnt > 1) continue;

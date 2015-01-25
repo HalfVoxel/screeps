@@ -14,11 +14,18 @@ class AIManager {
 	public var statistics : AIStatistics;
 	public var assignment : Screeps.Assignment;
 	public var workerPaths : Array<WorkerPath>;
+	public var profiler : Profiler;
 
 	public function new () {}
 
-	public function tick () {
+	/** Makes sure the profiler is working */
+	public function configureProfiler () {
+		Profiler.setInstance (profiler);
+		profiler = Profiler.getInstance();
+		Profiler.tick ();
+	}
 
+	public function tick () {
 		if (carrierNeeded > 0) carrierNeeded *= 0.95;
 		extensionEnergyNeeded *= 0.9;
 
@@ -50,7 +57,7 @@ class AIManager {
 			}
 		}
 
-		if ((workerPaths == null || workerPaths.length == 0) && IDManager.spawns.length > 0) {
+		if ((workerPaths == null || workerPaths.length == 0) && IDManager.spawns.length > 0 && Game.time % 20 == 12) {
 			if (workerPaths != null) for (path in workerPaths) path.destroy ();
 
 			workerPaths = new Array<WorkerPath>();

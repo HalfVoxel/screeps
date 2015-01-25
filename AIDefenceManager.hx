@@ -7,6 +7,7 @@ class AIDefenceManager extends Base {
 
 	public var timeSinceHostileSeen : Int = 0;
 
+
 	public function configure () {
 		initialize ();
 		return this;

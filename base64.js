@@ -19,14 +19,15 @@
   THREE.Base64.fromArrayBuffer = function (arraybuffer) {
     var bytes = new Uint8Array(arraybuffer),
       i, len = bytes.buffer.byteLength, base64 = "";
-  
+    
+
     for (i = 0; i < len; i+=3) {
       base64 += THREE.Base64.base64String[bytes[i] >> 2];
       base64 += THREE.Base64.base64String[((bytes[i] & 3) << 4) | (bytes[i + 1] >> 4)];
       base64 += THREE.Base64.base64String[((bytes[i + 1] & 15) << 2) | (bytes[i + 2] >> 6)];
       base64 += THREE.Base64.base64String[bytes[i + 2] & 63];
     }
-  
+
     if ((len % 3) === 2) {
       base64 = base64.substring(0, base64.length - 1) + "=";
     } else if (len % 3 === 1) {
@@ -36,6 +37,16 @@
     return base64;
   };
   
+  THREE.Base64.fromArrayBuffer = function ( buffer ) {
+    var binary = '';
+    var bytes = new Uint8Array( buffer );
+    var len = bytes.byteLength;
+    for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode( bytes[ i ] );
+    }
+    return btoa( binary );
+};
+
   THREE.Base64.base64String = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   
   THREE.Base64.base64ToIndexSlow = function( c ) {
@@ -84,16 +95,18 @@
   
     };
   
-    return function(index){
+    /*return function(index){
       return test[index];
-    };
-  
+    };*/
+    return test;
+
   }();
   
   THREE.Base64.toArrayBuffer = function() {
   
     var base64ToIndex = THREE.Base64.base64ToIndex;
-  
+    //var arraybuffer = new ArrayBuffer (50000);
+
     return function(base64) {
   
       var bufferLength = base64.length * 0.75,
@@ -106,51 +119,42 @@
           bufferLength--;
         }
       }
-  
-      var arraybuffer = new ArrayBuffer(bufferLength),
-      bytes = new Uint8Array(arraybuffer);
+
+      //if (arraybuffer.byteLength < bufferLength) {
+        var arraybuffer = new ArrayBuffer(bufferLength);
+      //}
+      var bytes = new Uint8Array(arraybuffer);
   
       for (i = 0; i < len; i+=4) {
-        encoded1 = THREE.Base64.base64ToIndexNew(base64[i]);
-        encoded2 = THREE.Base64.base64ToIndexNew(base64[i+1]);
-        encoded3 = THREE.Base64.base64ToIndexNew(base64[i+2]);
-        encoded4 = THREE.Base64.base64ToIndexNew(base64[i+3]);
+        encoded1 = THREE.Base64.base64ToIndexNew[base64[i]];
+        encoded2 = THREE.Base64.base64ToIndexNew[base64[i+1]];
+        encoded3 = THREE.Base64.base64ToIndexNew[base64[i+2]];
+        encoded4 = THREE.Base64.base64ToIndexNew[base64[i+3]];
   
         bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
         bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
         bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
       }
   
+      //return {data: arraybuffer, length: bufferLength};
       return arraybuffer;
     };
   
   }();
   
   
+
   THREE.Base64.toArrayOfFloats = function( base64 ) {
-  
+    
     var arrayBuffer = THREE.Base64.toArrayBuffer( base64 );
     var floatArray = new Float32Array( arrayBuffer );
-  
+    var length = floatArray.length;
+
     var arrayOfFloats = [];
-    for( var i = 0, il = floatArray.length; i < il; i ++ ) {
+    for( var i = 0; i < length; i ++ ) {
       arrayOfFloats.push( floatArray[i] );
-    }  
+    }
   
     return arrayOfFloats;
   
   };
-  
-  var array = []
-  for (var i = 0; i < 10000; i++) {
-    array.push(i * 0.8734 - 5000);
-  }
-  
-  var arrayBuffer = new ArrayBuffer(array.length * 4);
-  var floatBuffer = new Float32Array(arrayBuffer);
-  for (var i = 0; i < array.length; i++) {
-    floatBuffer[i] = array[i];
-  }
-  
-  var bufferInBase64 = THREE.Base64.fromArrayBuffer(arrayBuffer);
-  var bufferInJSON = JSON.stringify(array);

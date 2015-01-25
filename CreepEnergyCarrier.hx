@@ -52,12 +52,10 @@ class CreepEnergyCarrier extends AICreep {
 
 		var actionTaken = false;
 
-		var droppedEnergy : Array<Energy> = null;
-
-		droppedEnergy = cast src.room.find(DroppedEnergy);
+		var droppedEnergy : Array<Energy> = IDManager.droppedEnergy;
 
 		// Variation and block remover
-		if (Game.time % 80 == 0) currentPath = null;
+		if (Game.time % 60 == 0) currentPath = null;
 
 		if (src.energy < src.energyCapacity) {
 
@@ -78,7 +76,7 @@ class CreepEnergyCarrier extends AICreep {
 			}
 
 			if (bestTransferFrom != null) {
-				trace ("Picking up " + largestEnergyAmount);
+				//trace ("Picking up " + largestEnergyAmount);
 				src.pickup (bestTransferFrom);
 				manager.statistics.onPickedEnergy (Std.int(Math.min (capacity, largestEnergyAmount)));
 			}
@@ -232,8 +230,7 @@ class CreepEnergyCarrier extends AICreep {
 			var bestTransferTarget = null;
 			var bestTransferAmount = 0;
 
-			for (ent in src.room.find(MyStructures)) {
-				var ext : Structure = cast ent;
+			for (ext in IDManager.structures) {
 				if (ext.structureType == Extension && src.pos.isNearTo(ext.pos)) {
 
 					var amount = Std.int(Math.min(ext.energyCapacity-ext.energy, src.energy));
@@ -250,7 +247,6 @@ class CreepEnergyCarrier extends AICreep {
 				trace("Transfering to ext..." + src.pos);
 				transferDone = true;
 				src.transferEnergy(bestTransferTarget);
-				src.room.createFlag (src.pos.x,src.pos.y,id+"TX");
 				currentPath = null;
 				energyDelta -= amount;
 
@@ -264,7 +260,6 @@ class CreepEnergyCarrier extends AICreep {
 					//trace("Transfering to spawn..." + src.pos);
 					transferDone = true;
 					src.transferEnergy(spawn.src);
-					src.room.createFlag (src.pos.x,src.pos.y,id+"TS");
 					currentPath = null;
 					energyDelta -= src.energy;
 
@@ -303,7 +298,6 @@ class CreepEnergyCarrier extends AICreep {
 		}
 
 		if (currentPath == null) {
-			trace("Retrying...");
 			if (iteration > 0) return;
 
 			energyCarrier (iteration+1); return;

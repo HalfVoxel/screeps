@@ -13,11 +13,19 @@ class Healer extends AICreep {
 
 	public override function preprocessAssignment ( assignment : Screeps.Assignment ) {
 
+		preprocessAssignmentHealer (assignment);
+	}
+
+	public function preprocessAssignmentHealer ( assignment : Screeps.Assignment ) {
+		Profiler.start ("preprocessAssignmentHealer");
+
 		var targets = IDManager.creeps;
 
 		var hostileTargets = src.pos.findInRange (HostileCreeps, 1);
 
 		if (targets.length > 0) {
+
+			Profiler.start ("preprocessAssignmentHealer_create");
 			var occ = new Array<Float>();
 			var occ2 = new Array<Float>();
 			var size = 2+2+1;
@@ -29,6 +37,9 @@ class Healer extends AICreep {
 				}
 			}
 
+			Profiler.stop ();
+
+			Profiler.start ("preprocessAssignmentHealer_put");
 			for (target in targets) {
 
 				var nx = (target.src.pos.x - src.pos.x) + offset;
@@ -48,6 +59,9 @@ class Healer extends AICreep {
 				}
 			}
 
+			Profiler.stop ();
+
+			Profiler.start ("preprocessAssignmentHealer_smooth");
 			for ( i in 0...1) {
 				for ( j in 0...occ2.length ) {
 					//occ2[j] = 0;
@@ -73,18 +87,19 @@ class Healer extends AICreep {
 
 			// result is in occ
 
+			var terrainMap = manager.map.getTerrainMap();
 			for ( x in 0...size ) {
 				for ( y in 0...size ) {
-					var look = src.room.lookAt({x: x-offset+src.pos.x, y: y-offset+src.pos.y});
-					for ( lookItem in look ) {
-						if (lookItem.type == Terrain && lookItem.terrain == Wall ) {
-							occ[y*size + x] = 0;
-						}
+					if (AIMap.getRoomPos (terrainMap, src.pos.x + x - offset, src.pos.y + y - offset) < 0) {
+						occ[y*size + x] = 0;
 					}
 				}
 			}
 
 			var anyNonZero = false;
+
+			Profiler.stop ();
+			Profiler.start ("preprocessAssignmentHealer_score");
 
 			for (nx in AICreep.near1x) {
 				for (ny in AICreep.near1y) {
@@ -128,7 +143,11 @@ class Healer extends AICreep {
 			if (!anyNonZero) {
 				assignment.clearAllFor (this);
 			}
+
+			Profiler.stop ();
 		}
+
+		Profiler.stop ();
 	}
 
 	function findGoodHealingTarget ( shortDistance : Bool ) {

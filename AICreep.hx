@@ -72,13 +72,13 @@ class AICreep extends Base {
 			if (AIMap.getRoomPos(manager.map.getTerrainMap(), nx, ny) == -1) continue;
 
 			var movementNearThis = 0.0;
-			var movementOnThis = AIMap.getRoomPos (manager.map.movementPatternMap, nx, ny);
+			var movementOnThis = AIMap.getRoomPos (manager.map.movementPatternMapSlow, nx, ny);
 
 			for (j in 0...AIMap.dx.length) {
 				var nx2 = nx + AIMap.dx[j];
 				var ny2 = ny + AIMap.dy[j];
 
-				movementNearThis += AIMap.getRoomPos (manager.map.movementPatternMap, nx2, ny2);
+				movementNearThis += AIMap.getRoomPos (manager.map.movementPatternMapSlow, nx2, ny2);
 			}
 
 			var invalid = false;
@@ -180,6 +180,32 @@ class AICreep extends Base {
 		}
 	}
 
+	/** approximate */
+	function timeToTraversePath ( path : Array<AIPathfinder.State> ) {
+		if (path.length == 0) return 1000.0;
+		var pathCost = manager.pathfinder.sumCost (path);
+
+		var movement = src.getActiveBodyparts (Move);
+		var weight = src.body.length - movement;
+
+		if (movement == 0) return 1000.0;
+		
+		return Math.min (path.length, pathCost*weight / movement);
+	}
+
+	function timeToTraversePathCost ( pathCost : Float ) {
+
+		if (pathCost < 0) return 1000.0;
+
+		var movement = src.getActiveBodyparts (Move);
+
+		if (movement == 0) return 1000.0;
+
+		var weight = src.body.length - movement;
+
+		return pathCost*weight / movement;
+	}
+
 	function harvester () {
 
 		var targetSource : AISource = cast currentTarget;
@@ -187,28 +213,42 @@ class AICreep extends Base {
 		// Recalculate source
 		//if (targetSource != null && targetSource.energy == 0) targetSource = null;
 
-		if ( targetSource == null || Game.time % 6 == id % 6 ) {
+		if ( (targetSource == null || Game.time % 6 == id % 6) && src.fatigue == 0) {
 			var source = targetSource;
 
-			var pathToSource = source != null ? src.pos.findPathTo(source.src.pos, {heuristicWeight: 1}) : [];
-			// Note ignores source.sustainabilityFactor
-			var earliestEnergyGather = Game.time +  (source != null && pathToSource.length != 0 ? Math.max (4*pathToSource.length, source.src.energy > 0 ? 0 : source.src.ticksToRegeneration) : 1000);
-
-			if (src.id == "id11418155875539" ) trace("@" + src.pos + " " + src.id);
-			//targetSource = switch(src.pos.findClosestActiveSource ({heuristicWeight: 1})) {
+			// Sort the sources based on approximate distance
+			var options = [];
 			for (otherSource in IDManager.sources) {
+				var approximateDistance = manager.pathfinder.approximateCloseDistance (src.pos, otherSource.src.pos);
+				options.push ({dist: approximateDistance, source: otherSource});
+			}
 
-				var path = src.pos.findPathTo(otherSource.src.pos, {heuristicWeight: 1});
+			options.sort (function (a,b) { return a.dist > b.dist ? 1 : (a.dist < b.dist ? -1 : 0);});
 
-				var newEarliestEnergyGather = Game.time + (path.length != 0 ? Math.max (4*path.length, otherSource.src.energy > 30 ? 0 : otherSource.src.ticksToRegeneration) : 1000)/otherSource.sustainabilityFactor;
+			var earliestEnergyGather = Game.time + 1000000.0;
 
-				if (src.id == "id11418155875539" ) trace(earliestEnergyGather + " " + newEarliestEnergyGather + " " + otherSource.src.pos + " " + path.length + " " + pathToSource.length);
+			// Loop through the options in order, take the first one which
+			// can be reached
+			for (option in options) {
+				var otherSource = option.source;
 
-				var actuallyNear = otherSource.src.pos.isNearTo (cast path[path.length-1]);
-				if (path.length != 0 && actuallyNear && newEarliestEnergyGather < earliestEnergyGather && (targetSource == otherSource || otherSource.betterAssignScore(-newEarliestEnergyGather))) {
+				// Find path, include units as obstacles
+				var path = manager.pathfinder.findPathTo (src.pos, otherSource.src.pos);
+				var timeToTraverse = timeToTraversePath(path);
+
+				// Ignore sustainability factor for the current source
+				var sustainabilityFactor = otherSource == source ? 1 : otherSource.sustainabilityFactor;
+
+				var newEarliestEnergyGather = Game.time + (Math.max (timeToTraverse, otherSource.src.energy > 30 ? 0 : otherSource.src.ticksToRegeneration))/sustainabilityFactor;
+
+				var actuallyNear = option.dist >= 0;
+				if (actuallyNear && newEarliestEnergyGather < earliestEnergyGather && (targetSource == otherSource || otherSource.betterAssignScore(-newEarliestEnergyGather))) {
 					source = otherSource;
 					earliestEnergyGather = newEarliestEnergyGather;
+					break;
 				}
+
+				//trace ("Time to " + otherSource.src.pos.x + "," + otherSource.src.pos.y + " " + (newEarliestEnergyGather - Game.time) + " " + timeToTraverse);
 			}
 
 			if (source != null) {
@@ -398,11 +438,21 @@ class AICreep extends Base {
 	static var MeleeAttackDamage = 30;
 
 	static function calculateRangedMassDamage ( pos : RoomPosition ) {
+
+		Profiler.start ("calculateRangedMassDamage");
+
 		var damage = 0;
-		for (ent in pos.findInRange ( HostileCreeps, 3 )) {
-			var dist = RoomPosition.chebyshevDistance (pos, ent.pos);
-			damage += RangedMassAttackDamage[dist];
+		//for (ent in pos.findInRange ( HostileCreeps, 3 )) {
+		for (ent in IDManager.hostileCreeps) {
+			if (!ent.my) {
+				var dist = RoomPosition.chebyshevDistance (pos, ent.pos);
+				if (dist <= 3 && ent.getActiveBodyparts(RangedAttack) > 0) {
+					damage += RangedMassAttackDamage[dist];
+				}
+			}
 		}
+
+		Profiler.stop ();
 		return damage;
 	}
 
@@ -416,6 +466,9 @@ class AICreep extends Base {
 	}
 
 	public function preprocessAssignmentMelee ( assignment : Screeps.Assignment ) {
+
+		Profiler.start ("preprocessAssignmentMelee");
+
 		var targets = src.pos.findInRange (HostileCreeps, 2);
 
 
@@ -467,9 +520,14 @@ class AICreep extends Base {
 		if (!anyNonZero) {
 			assignment.clearAllFor (this);
 		}
+
+		Profiler.stop ();
 	}
 
 	public function preprocessAssignmentRanged ( assignment : Screeps.Assignment ) {
+
+		Profiler.start ("preprocessAssignmentRanged");
+
 		var targets = src.pos.findInRange (HostileCreeps, 4);
 
 		if (targets.length > 0) {
@@ -610,6 +668,8 @@ class AICreep extends Base {
 				assignment.clearAllFor (this);
 			}
 		}
+
+		Profiler.stop ();
 	}
 
 	function rangedAttacker () {
@@ -627,7 +687,7 @@ class AICreep extends Base {
 		if (targets.length > 0) {
 			var occ = new Array<Int>();
 			var occ2 = new Array<Int>();
-			var size = 3+3+1;
+			var size = 2+2+1;
 			var offset = Math.floor(size/2);
 			for ( x in 0...size ) {
 				for ( y in 0...size ) {
@@ -667,14 +727,12 @@ class AICreep extends Base {
 			}
 
 			// result is in occ
+			var terrainMap = manager.map.getTerrainMap();
 
 			for ( x in 0...size ) {
 				for ( y in 0...size ) {
-					var look = src.room.lookAt({x: x-offset+src.pos.x, y: y-offset+src.pos.y});
-					for ( lookItem in look ) {
-						if (lookItem.type == Terrain && lookItem.terrain == Wall ) {
-							occ[y*size + x] = 6;
-						}
+					if (AIMap.getRoomPos (terrainMap, src.pos.x + x - offset, src.pos.y + y - offset) < 0) {
+						occ[y*size + x] = 6;
 					}
 				}
 			}

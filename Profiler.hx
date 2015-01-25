@@ -1,9 +1,3 @@
-package com.gigglingcorpse.utils;
-import nme.display.Sprite;
-import nme.events.Event;
-import nme.Lib;
-import nme.text.TextField;
-import nme.text.TextFormat;
 
 /**
  * A simple profiler.
@@ -15,9 +9,9 @@ import nme.text.TextFormat;
 class Profiler
 {
 	
-	#if debug
-	
 	private static var instance:Profiler;
+
+	#if debug
 	
 	// Frame rate tracking
 	private var frameTime:Float;
@@ -27,8 +21,9 @@ class Profiler
 	private var selfTime:Float;
 	
 	// The code sections data
-	private var sectionMap:Hash<SectionData>;
+	private var sectionMap:DynamicObject<SectionData>;
 	
+	private var stack : Array<SectionData>;
 	// When (running) profiler code was started (different from instancedAt)
 	private var startedAt:Float;
 	// When the profiler was instanced/started
@@ -37,25 +32,36 @@ class Profiler
 	#end
 	
 	public function new () {
-		#if debug
+
+	}
+
+	public static function setInstance ( prof : Profiler ) {
+		instance = prof;
+	}
+
+	public static function verifyStackZero () {
+		if (instance.stack.length != 0) {
+			trace ("Profiler stack was not empty");
+			trace (instance.stack);
+			instance.stack = [];
+		}
+	}
+	public static function getInstance () {
 		if ( instance == null ) {
-			super();
-			instance = this;
-			instancedAt = Lib.getTimer();
+			instance = new Profiler ();
+			#if debug
+			instance.instancedAt = haxe.Timer.stamp();
 			startThis();
 			
-			sectionMap = new Hash<SectionData>();
-			selfTime = 0;
+			instance.sectionMap = new DynamicObject<SectionData>();
+			instance.stack = new Array<SectionData>();
+
+			instance.selfTime = 0;
 			
 			stopThis();
-			return this;
-			
-		} else {
-			return instance;
+			#end
 		}
-		#else
-		super();
-		#end
+		return instance;
 	}
 	
 	// Event handlers
@@ -67,13 +73,19 @@ class Profiler
 	 * Starts timing for a section. (It will create the section if it doesn't exist.)
 	 * @param	section Your reference string for the section.
 	 */
-	public static #if !debug inline #end function start( section:String ) {
+	public static #if !debug #end function start( section:String ) {
 		#if debug
 		startThis();
-		if ( !instance.sectionMap.exists( section ) ) {
-			instance.sectionMap.set( section, new SectionData( section ) );
-		} else instance.sectionMap.get( section ).start();
-		instance.stopThis();
+		var elem = null;
+		if ( instance.sectionMap[section] == null ) {
+			elem = new SectionData( section );
+			instance.sectionMap[section] = elem;
+		} else {
+			elem = instance.sectionMap[section];
+			SectionData.start(elem);
+		}
+		instance.stack.push (elem);
+		stopThis();
 		#end
 	}
 	
@@ -83,20 +95,14 @@ class Profiler
 	 * @param	section Your reference string for the section.
 	 * @return	If the section exists.
 	 */
-	public static #if !debug inline #end function stop( section:String ) : Bool{
+	public static #if !debug #end function stop() {
 		#if debug
-		startThis();
-		var r = false;
-		if ( instance.sectionMap.exists( section ) ) {
-			instance.sectionMap.get( section ).stop();
-			r = true;
+		if (instance.stack.length > 0) {
+			var elem = instance.stack.pop();
+			SectionData.stop (elem);
+		} else {
+			throw "ERROR: Cannot end profiler here. Stack is empty\n"+haxe.CallStack.toString(haxe.CallStack.callStack());
 		}
-		instance.stopThis();
-		return r;
-		
-		#else
-		
-		return false;
 		#end
 	}
 	
@@ -106,12 +112,12 @@ class Profiler
 	 * @param	section reference string.
 	 * @return  time logged.
 	 */
-	public static #if !debug inline #end function get( section:String ) : Float {
+	public static #if !debug #end function get( section:String ) : Float {
 		#if debug
 		startThis();
-		if ( instance.sectionMap.exists( section ) ) 
-			return instance.sectionMap.get( section ).time();
-		instance.stopThis();
+		if ( instance.sectionMap[section] != null ) 
+			return SectionData.time(instance.sectionMap[section]);
+		stopThis();
 		
 		#end
 		return 0;
@@ -130,9 +136,7 @@ class Profiler
 	 * called from other in-class functions.)
 	 */ 
 	private static inline function startThis() {
-		if ( instance == null ) 
-			instance = new Profiler();
-		instance.startedAt = Lib.getTimer();
+		instance.startedAt = haxe.Timer.stamp();
 	}
 	
 	
@@ -140,16 +144,43 @@ class Profiler
 	 * Stop the clock for the internal time log. 
 	 * Should be called at the end of every function who calls startThis();
 	 */
-	private inline function stopThis() {
-		instance.selfTime += Lib.getTimer() - instance.startedAt;
+	private static inline function stopThis() {
+		instance.selfTime += haxe.Timer.stamp() - instance.startedAt;
 	}
 	
 	#end
 	
+	public static function tick () {
+		#if debug
+		for (v in instance.sectionMap) {
+			v.thisTick = 0;
+		}
+		#end
+	}
+
 	public static inline function clamp( min:Float, val:Float, max:Float )  : Float {
 		return min > val ? min : max < val ? max : val;
 	}
 	
+	public static function toString () {
+		var s = "";
+		#if debug
+		for (v in instance.sectionMap) {
+			s += SectionData.toString(v) + "\n";
+		}
+		#end
+		return s;
+	}
+
+	public static function toStringThisTick () {
+		var s = "";
+		#if debug
+		for (v in instance.sectionMap) {
+			s += SectionData.toStringThisTick(v) + "\n";
+		}
+		#end
+		return s;
+	}
 }
 
 #if debug
@@ -159,27 +190,37 @@ class SectionData {
 	private var name:String;
 	private var startTime:Float;
 	private var totalTime:Float;
-	
-	public function new( name:String ) {
+	private var counter:Int;
+	public var thisTick:Float;
+
+	public function new ( name:String ) {
 		this.name = name;
 		totalTime = 0;
-		start();
+		counter = 0;
+		start(this);
 	}
 	
-	public inline function stop() {
-		totalTime += (Lib.getTimer() - startTime );
+	public static inline function stop( v : SectionData ) {
+		var time = (haxe.Timer.stamp() - v.startTime );
+		v.thisTick += time;
+		v.totalTime += time;
+		v.counter++;
 	}
 	
-	public inline function start() {
-		startTime = Lib.getTimer();
+	public static inline function start( v : SectionData ) {
+		v.startTime = haxe.Timer.stamp();
 	}
 	
-	public inline function time() {
-		return totalTime;
+	public static inline function time( v : SectionData ) {
+		return v.totalTime;
 	}
 	
-	public inline function toString() {
-		return name + ":\t" + totalTime;
+	public static inline function toString( v : SectionData ) {
+		return v.name + ":\t\t" + Math.round (v.totalTime*1000) + "\t Average: " + Math.round ((v.totalTime/v.counter)*1000);
+	}
+
+	public static inline function toStringThisTick( v : SectionData ) {
+		return v.name + ":\t\t" + Math.round (v.thisTick*1000);
 	}
 }
 

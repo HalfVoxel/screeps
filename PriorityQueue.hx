@@ -19,6 +19,7 @@ class PriorityQueue<T:HasF> {
 		return nextElementIndex == 1;
 	}
 
+	/** can be optimized */
 	public function clear () {
 
 		for (i in 1...nextElementIndex) {
@@ -86,17 +87,27 @@ class PriorityQueue<T:HasF> {
 		if (nextElementIndex == 1) return toReturn;
 		
 		var obj = data[nextElementIndex];
-		//data[index] = data[nextElementIndex];
 
 		while(true) {
-			if (index*2 < nextElementIndex && obj.f > data[index*2].f) {
-				data[index] = data[index*2];
+			var swapIndex = nextElementIndex;
+			var ind2 = index*2;
+			if (ind2+1 < nextElementIndex) {
+				if (data[swapIndex].f > data[ind2].f) {
+					swapIndex = ind2;
+				}
+				if (data[swapIndex].f > data[ind2+1].f) {
+					swapIndex = ind2+1;
+				}
+			} else if (ind2 < nextElementIndex) {
+				if (data[swapIndex].f > data[ind2].f) {
+					swapIndex = ind2;
+				}
+			}
+			
+			if (swapIndex != nextElementIndex) {
+				data[index] = data[swapIndex];
 				data[index].heapIndex = index;
-				index = index*2;
-			} else if ( index*2+1 < nextElementIndex && obj.f > data[index*2+1].f) {
-				data[index] = data[index*2+1];
-				data[index].heapIndex = index;
-				index = index*2+1;
+				index = swapIndex;
 			} else {
 				break;
 			}

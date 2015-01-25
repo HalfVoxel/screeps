@@ -4,4 +4,4 @@
 -lib hxmath
 -D HXMATH_USE_DYNAMIC_STRUCTURES
 -js out.js
--cmd cat base64.js Hungarian.js out.js > out2.js
+-cmd cat base64.js Hungarian.js out.js > sync/main.js

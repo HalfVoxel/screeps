@@ -16,7 +16,7 @@ class AIConstructionManager extends Base {
 		}
 
 		// Performance
-		if (Game.time % 5 != 0) return;
+		if (Game.time % 10 != 5) return;
 
 		var room = Game.getRoom("1-1").extract();
 
@@ -64,7 +64,7 @@ class AIConstructionManager extends Base {
 		}
 
 		// We start with lots of energy, to avoid building extensions at the start, do this
-		var earlyScore = Game.time < 200 ? -5 : 0;
+		var earlyScore = IDManager.timeSinceStart < 200 ? -5 : 0;
 
 		
 		var latentEnergyScore = (Math.max (latentEnergy-300, 0)/120);
