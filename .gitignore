@@ -1,5 +1,6 @@
-out.js
-out2.js
-.DS_STORE
 decodein
 decodeout
+out.js
+out2.js
+node_modules
+engine.max.js
