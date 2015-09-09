@@ -4,7 +4,7 @@ class IDManager {
 
     private static var scId2objs = new Map<String, Entity> ();
 	private static var id2objs = new Map<Int, Base> ();
-	private static var objs2ref : DynamicObject<Ref<Base>>;
+	private static var objs2ref : DynamicObject<Ref>;
 
 	public static var creeps 			= new Array<AICreep>();
 	public static var spawns 			= new Array<AISpawn>();
@@ -19,7 +19,7 @@ class IDManager {
 
 	public static var structures : Array<Structure> = new Array<Structure>();
 	public static var timeSinceStart : Int = 0;
-	
+
 
 	public static var loadedObjects : Array<Base>;
 
@@ -76,7 +76,7 @@ class IDManager {
 
 		// Load reference map
 		objs2ref = Memory["refmap"];
-		if ( objs2ref == null ) objs2ref = new DynamicObject<Ref<Base>>();
+		if ( objs2ref == null ) objs2ref = new DynamicObject<Ref>();
 
 		loadedObjects = new Array<Base>();
 
@@ -105,7 +105,7 @@ class IDManager {
 			var destroyed = bySCID (linkStr).isNone();
 
 			var ent : Base = Type.createInstance (Type.resolveClass (ent.type), []);
-			
+
 			if (ent.isStandalone()) {
 				destroyed = false;
 			}
@@ -421,7 +421,7 @@ class IDManager {
 
 	public static function tickEnd () {
 
-		
+
 		Memory["refmap"] = objs2ref;
 		Memory["objects"] = null;
 		Memory["manager"] = null;
@@ -453,13 +453,13 @@ class IDManager {
 
 		Memory["creepQueue"] = creepQueue;
 
-		
+
 		Memory["objects"] = objects;
 		Memory["manager"] = haxe.Json.parse (haxe.Json.stringify (manager, replacer));
 
 		//trace ("JSONifying took " + (haxe.Timer.stamp() - t1)*1000);
 		//rewriteForSerialization(manager);
-		
+
 		//trace(objects);
 	}
 
@@ -489,7 +489,7 @@ class IDManager {
 		obj2.linked = obj1;
 
 		objs2ref[obj1.id] = obj2;
-		
+
 		var owned : OwnedEntity = cast obj1;
 		obj2.my = owned.my != null ? owned.my : false;
 	}

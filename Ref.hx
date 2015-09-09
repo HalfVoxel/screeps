@@ -1,9 +1,8 @@
-interface HasID
-{
-    public var id : Int;	
+interface HasID {
+    public var id : Int;
 }
 
-abstract Ref<T:HasID> (Int) {
+/*abstract Ref<T:HasID> (Int) {
 
 	inline function new (v : Int) {
 		this = v;
@@ -26,7 +25,7 @@ abstract Ref<T:HasID> (Int) {
 
 	@:op(A == B)
 	public static function compRef<T>(lhs : Ref<T>, rhs : Ref<T>) : Bool {
-		
+
 		untyped __js__("
 		var val1 = lhs != null ? IDManager.byID(lhs) : null;
 		var val2 = rhs != null ? IDManager.byID(rhs) : null;");
@@ -42,6 +41,52 @@ abstract Ref<T:HasID> (Int) {
 
 	@:op(A != B)
 	public static function ncompRef<T>(lhs : Ref<T>, rhs : Ref<T>) : Bool {
+		untyped __js__("
+		var val1 = lhs != null ? IDManager.byID(lhs) : null;
+		var val2 = rhs != null ? IDManager.byID(rhs) : null;");
+		return untyped __js__("val1 != val2");
+	}
+}*/
+
+abstract Ref (Int) {
+
+	inline function new (v : Int) {
+		this = v;
+	}
+
+	@:from
+	public static inline function fromBase(s : Base) : Ref {
+		return new Ref(s.id);
+	}
+
+	@:to
+	public inline function toEntity() : Base {
+		return cast IDManager.byID(this);
+	}
+
+	@:op(A == B)
+	public static function compT(lhs : Ref, rhs : Base) : Bool {
+		return untyped __js__("lhs == null ? (rhs == null) : (IDManager.byID(lhs) == rhs)");
+	}
+
+	@:op(A == B)
+	public static function compRef(lhs : Ref, rhs : Ref) : Bool {
+
+		untyped __js__("
+		var val1 = lhs != null ? IDManager.byID(lhs) : null;
+		var val2 = rhs != null ? IDManager.byID(rhs) : null;");
+
+		return untyped __js__("val1 == val2");
+	}
+
+
+	@:op(A != B)
+	public static function ncompT(lhs : Ref, rhs : Base) : Bool {
+		return untyped __js__("lhs == null ? rhs != null : IDManager.byID(lhs) != rhs");
+	}
+
+	@:op(A != B)
+	public static function ncompRef(lhs : Ref, rhs : Ref) : Bool {
 		untyped __js__("
 		var val1 = lhs != null ? IDManager.byID(lhs) : null;
 		var val2 = rhs != null ? IDManager.byID(rhs) : null;");
