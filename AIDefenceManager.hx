@@ -17,7 +17,7 @@ class AIDefenceManager extends Base {
 
 		timeSinceHostileSeen++;
 
-		var room = Game.getRoom("1-1").extract();
+		var room = Game.getFirstRoom();
 
 		if (room.find (HostileCreeps).length > 0) timeSinceHostileSeen = 0;
 
@@ -50,7 +50,7 @@ class AIDefenceManager extends Base {
 			//trace(points);
 
 			var nodeResults = points.map (function (p) { return new CNode (p.x, p.y, p.f, p.root); });
-			
+
 
 			AICollectorPoints.connect (nodeResults, false);
 
@@ -60,7 +60,7 @@ class AIDefenceManager extends Base {
 			for (comp in components) {
 				var layers = [for (i in 0...3) comp.nodes.filter (function (n) { return n.f == 2+i; })];
 				var pointLayers = [for (layer in layers) layer.map(AICollectorPoints.point2intvector2)];
-				
+
 				// Increase randomness
 				for (layer in pointLayers) layer.shuffle();
 

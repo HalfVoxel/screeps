@@ -25,7 +25,7 @@ class AIMap extends Base {
 	public override function isStandalone () { return true; }
 
 	public function getTerrainMap () {
-		if (terrainMap == null) terrainMap = generateTerrainMap (Game.getRoom("1-1").extract());
+		if (terrainMap == null) terrainMap = generateTerrainMap (Game.getFirstRoom());
 		return terrainMap;
 	}
 
@@ -83,7 +83,7 @@ class AIMap extends Base {
 		potentialDamageMap = generatePotentialDamageMap ();
 
 		if (Game.time % 20 == 3) {
-			var room = Game.getRoom("1-1").extract();
+			var room = Game.getFirstRoom();
 			regroupingMap = haxe.Timer.measure (function () { return generateRegroupingMap (room);});
 		}
 	}
@@ -682,7 +682,7 @@ class AIMap extends Base {
 	public static function generatePotentialDamageMap () {
 		var map = createMap(MapSize);
 
-		var creeps : Array<Creep> = cast Game.getRoom("1-1").extract().find (HostileCreeps);
+		var creeps : Array<Creep> = cast Game.getFirstRoom().find (HostileCreeps);
 
 		for (creep in creeps) {
 			if (!creep.my) {
@@ -795,7 +795,7 @@ class AIMap extends Base {
 
 		setMap(map2,-1);
 
-		var room = Game.getRoom("1-1").extract();
+		var room = Game.getFirstRoom();
 
 		for (source in IDManager.sources) {
 			addDeltaRoomPos (map2, source.src.pos.x, source.src.pos.y, -1000);

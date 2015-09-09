@@ -53,7 +53,7 @@ class AICollectorPoints extends Base {
 		var results : Array<Point> = cast findUntil (cast pts, terrain, function (v : Point) { return v.f == 2; }, 100000);
 		var nodeResults = results.map (function (p : Point) { return new CNode (p.x, p.y, p.f, p.root); });
 
-		var room = Game.getRoom("1-1").extract();
+		var room = Game.getFirstRoom();
 
 		connect (nodeResults, true);
 		var components = groupIntoComponents (nodeResults, true);
@@ -100,7 +100,7 @@ class AICollectorPoints extends Base {
 
 		cid = 0;
 		for (comp in components) {
-			
+
 
 			//if (cid > 3) break;
 
@@ -145,7 +145,7 @@ class AICollectorPoints extends Base {
 				}
 
 				var idx = node.comp.nodes.indexOf(node);
-					
+
 				var vecpath = new Array<AIPathfinder.Vec2> ();
 				if (node.comp.closed) {
 					for (i in 1...node.comp.nodes.length-1) {
@@ -192,9 +192,9 @@ class AICollectorPoints extends Base {
 			}
 
 			if (pathto != null) {// && pathfrom != null) {
-				
 
-				
+
+
 			} else {
 				//trace ((pathto != null) + " " + (pathfrom != null));
 			}
@@ -240,7 +240,7 @@ class AICollectorPoints extends Base {
 			var bestPaths = null;
 			var bestScore = 100000.0;
 
-			
+
 
 			//continue;
 			var now = haxe.Timer.stamp();
@@ -259,7 +259,7 @@ class AICollectorPoints extends Base {
 
 			var res = dfsMinimize (innercomps, 0, new Array<CNode>(), evaluateComponentCombination);
 			if (res == null) continue;
-			
+
 			bestScore = res.cost;
 			bestPaths = res.data;
 
@@ -599,7 +599,7 @@ class AICollectorPoints extends Base {
 		var components = new Array<Component>();
 
 		for (node in nodes) {
-			
+
 			if (!seen.exists(node)) {
 				var ls = new Array<CNode>();
 				rec(ls, node);

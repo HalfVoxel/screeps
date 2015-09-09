@@ -81,7 +81,7 @@ class AIPathfinder extends Base {
 			}
 
 			costsWUnits = costs.copy ();
-			
+
 			var room = Game.getFirstRoom ();
 			var allCreeps = IDManager.allCreeps;
 			for (creep in allCreeps) {
@@ -111,7 +111,7 @@ class AIPathfinder extends Base {
 
 	static var dx = [1, 0, -1, 0, 1, 1, -1, -1];
 	static var dy = [0, 1, 0, -1, -1, 1, 1, -1];
-	
+
 	static var near1x = [0, 1, 1, 0, -1, -1, -1, 0, 1];
 	static var near1y = [0, 0, 1, 1, 1, 0, -1, -1, -1];
 
@@ -240,7 +240,7 @@ class AIPathfinder extends Base {
 	public function findPathNew (from : Vec2, to : Vec2, ignoreStartEnd : Bool, costs : Array<Float>, ?options : PathOptions, ?customCosts : Array<Float>) {
 		pathID++;
 		queue.clear();
-		
+
 
 		var start = nodes[from.y*Room.Width + from.x];
 
@@ -249,7 +249,7 @@ class AIPathfinder extends Base {
 				return null;
 			}
 		}
-		
+
 		if (RoomPosition.chebyshevDistance (from, to) <= 1) {
 			return [nodes[start.y*Room.Width+start.x], nodes[to.y*Room.Width+to.x]];
 		}
@@ -352,7 +352,7 @@ class AIPathfinder extends Base {
 	}
 
 	public function displaySearched () {
-		var room = Game.getRoom("1-1").extract();
+		var room = Game.getFirstRoom();
 
 		for (node in nodes) {
 			if (node.pathID == pathID) {
@@ -408,17 +408,17 @@ class AIPathfinder extends Base {
 
 		trace ("Calculated pivot index " + pivotIndex + " to " + bx+","+by);
 
-		var room = Game.getRoom("").extract();
+		var room = Game.getFirstRoom();
 		room.createFlag (bx,by, "F"+pivotIndex, Cyan);
 	}
 
 	public function flood (from : Vec2) {
 		pathID++;
 		queue.clear();
-		
+
 
 		var start = nodes[from.y*Room.Width + from.x];
-		
+
 		start.parent = null;
 		start.pathID = pathID;
 		start.g = 0;
@@ -487,7 +487,7 @@ class AIPathfinder extends Base {
 				return null;
 			}
 		}
-		
+
 		start.parent = null;
 		start.pathID = pathID;
 		start.g = 0;
@@ -504,7 +504,7 @@ class AIPathfinder extends Base {
 				break;
 			}
 
-			
+
 			/*if (directions != null && state.direction != -1) {
 				var delta = state.direction - directions[state.y*Room.Width + state.x];
 				var angle = Math.min (Math.abs(delta), delta + DIRS);

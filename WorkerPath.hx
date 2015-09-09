@@ -36,7 +36,7 @@ class WorkerPath extends Base {
 	public function nearbyEnergy () : Float {
 		clean ();
 
-		var room = Game.getRoom("1-1").extract();
+		var room = Game.getFirstRoom();
 
 		var sum = 0;
 		for (ent in room.find(DroppedEnergy)) {

@@ -208,7 +208,7 @@ class Screeps {
 
 		return;
 
-		var room = Game.getRoom("1-1").extract();
+		var room = Game.getFirstRoom();
 
 		var pts = [];
 

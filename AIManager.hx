@@ -42,7 +42,7 @@ class AIManager {
 
 		defence.tick ();
 
-		var room = Game.getRoom("1-1").extract();
+		var room = Game.getFirstRoom();
 
 		for (ent in room.find(DroppedEnergy)) {
 			var energy : Energy = cast ent;

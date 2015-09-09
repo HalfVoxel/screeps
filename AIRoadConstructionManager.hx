@@ -16,7 +16,7 @@ class AIRoadConstructionManager extends Base {
 
 		if ( roadMap == null ) roadMap = AIMap.createMap (Room.Width);
 
-		var room = Game.getRoom("1-1").extract();
+		var room = Game.getFirstRoom();
 
 		// We start with lots of energy, to avoid building extensions at the start, do this
 		var earlyScore = IDManager.timeSinceStart < 100 ? 50 : 0;
