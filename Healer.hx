@@ -170,9 +170,9 @@ class Healer extends AICreep {
 					if (shortDistance) {
 						if (!src.pos.isNearTo (creep.src.pos)) continue;
 					} else {
-						var pathLength = src.pos.findPathTo(creep.src.pos).length;
+						var pathLength = manager.pathfinder.approximateCloseDistance (src.pos, creep.src.pos);//src.pos.findPathTo(creep.src.pos).length;
 
-						if (pathLength == 0) continue;
+						if (pathLength == -1) continue;
 
 					 	pathCost = Math.min (pathLength/20, 1);
 					 }
@@ -247,7 +247,9 @@ class Healer extends AICreep {
 			}
 		} else {
 
-			healingTarget = findGoodHealingTarget(false);
+			if (healingTarget == null || Game.time % 5 == id % 5) {
+				healingTarget = findGoodHealingTarget(false);
+			}
 
 			if (healingTarget != null) {
 				src.moveTo(healingTarget.src);
@@ -260,9 +262,13 @@ class Healer extends AICreep {
 				} else {
 					for (creep in IDManager.creeps) {
 						if (creep != this) {
-							if (src.pos.inRangeTo(creep.src.pos, 3) && creep.src.hits < creep.src.hitsMax) {
-								src.rangedHeal(creep.src);
-								break;
+							if (creep.src.hits < creep.src.hitsMax) {
+								if (src.pos.isNearTo(creep.src.pos)) {
+									src.heal(creep.src);
+								} else if (src.pos.inRangeTo(creep.src.pos, 3) && creep.src.hits < creep.src.hitsMax) {
+									src.rangedHeal(creep.src);
+									break;
+								}
 							}
 						}
 					}

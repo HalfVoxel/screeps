@@ -111,6 +111,19 @@ class AISpawn extends Base {
 			complexityScore *= 100000;
 		}
 
+		var numSourcesCanSustainMoreHarvesters = 0;
+		for (source in IDManager.sources) {
+			if (source.sustainabilityFactor > 1) {
+				numSourcesCanSustainMoreHarvesters++;
+			}
+		}
+		// Subtract harvesters that are not working
+		for (creep in IDManager.creeps) {
+			if (creep.my && creep.role == Harvester && creep.currentTarget == null) {
+				numSourcesCanSustainMoreHarvesters--;
+			}
+		}
+
 		var maxExtensions = 5;
 		for (entity in src.room.find(MyStructures)) {
 			var structure : Structure = cast entity;
@@ -124,7 +137,9 @@ class AISpawn extends Base {
 			energyNeededForConstruction += site.src.progressTotal - site.src.progress;
 		}
 
-		var militaryTimeScore = 0;//Game.time/3000;
+		trace ("NUM: " + numSourcesCanSustainMoreHarvesters);
+
+		var militaryTimeScore = 2*(IDManager.timeSinceStart/3000);
 		
 		if (IDManager.creeps.length > 0) {
 			for (roleGroup in roleTypes) {
@@ -162,13 +177,16 @@ class AISpawn extends Base {
 						score += 1;
 					}
 
-					if (role.role == Harvester && manager.getRoleCount(Harvester) < sourceSlots && hostileMilitary == 0) {
+					/*if (role.role == Harvester && manager.getRoleCount(Harvester) < sourceSlots && hostileMilitary == 0) {
 						score += 1 * (1/300) * complexityScore;
+					}*/
+					if (role.role == Harvester && numSourcesCanSustainMoreHarvesters > 0) {
+						score += 0.2 * numSourcesCanSustainMoreHarvesters;
 					}
 
 					// Too many harvesters
-					if (role.role == Harvester && manager.getRoleCount(Harvester) >= sourceSlots) score *= 0.25;
-					if (role.role == Harvester && manager.getRoleCount(Harvester) >= sourceSlots*0.8) score *= 0.7;
+					//if (role.role == Harvester && manager.getRoleCount(Harvester) >= sourceSlots) score *= 0.25;
+					//if (role.role == Harvester && manager.getRoleCount(Harvester) >= sourceSlots*0.8) score *= 0.7;
 
 					if (role.role == EnergyCarrier) {
 						score += manager.carrierNeeded*0.08;// / manager.getRoleCount(Harvester);

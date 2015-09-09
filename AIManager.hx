@@ -50,7 +50,7 @@ class AIManager {
 		}
 
 		pathfinder.tick();
-		
+
 		if (Game.time % 10 == 8) {
 			for (site in IDManager.constructionSites) {
 				//site.src.remove ();
@@ -68,7 +68,7 @@ class AIManager {
 			}
 		}
 
-		
+
 		map.tick();
 		constructionManager.tick ();
 
@@ -86,7 +86,7 @@ class AIManager {
 		}
 
 		var path2 = pathfinder.findPath(path[path.length-1], spawn1.src.pos);
-		
+
 		var idx = 0;
 		for (pos in path) {
 			room.createFlag (pos.x, pos.y, "1."+idx);

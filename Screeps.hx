@@ -6,7 +6,7 @@ import Storage.Memory;
 class Test {
 	public var f:Float;
 	public var heapIndex : Int;
-	
+
 	public function new (v : Float) {
 		f = v;
 	}
@@ -37,7 +37,7 @@ class Screeps {
 		var stamp1 = haxe.Timer.stamp();
 
 		try {
-			//haxe.Timer.measure (function () { 
+			//haxe.Timer.measure (function () {
 				IDManager.tick ();
 			//}, {methodName:null, lineNumber: 0, fileName: "IDManager.Tick", className: null});
 			new Screeps().run();
@@ -47,10 +47,10 @@ class Screeps {
 		}
 
 		try {
-			//haxe.Timer.measure (function () { 
+			//haxe.Timer.measure (function () {
 				IDManager.tickEnd ();
 			//}, {methodName:null, lineNumber: 0, fileName: "IDManager.TickEnd", className: null});
-			
+
 		} catch (e : Dynamic) {
 			trace(e.stack);
 		}
@@ -64,7 +64,7 @@ class Screeps {
 
 		trace ("Total Time: " + Math.round ((stamp2-stamp1)*1000) + " Budget: "+Game.cpuLimit + " Actual Used: "+used);
 		untyped __js__ ("console.log ('CPU:'+used)");
-		
+
 	}
 
 	public function new () {}
@@ -83,7 +83,7 @@ class Screeps {
 		if (killBecauseOfLowCPU()) return;
 
 		Profiler.start ("Run_spawn");
-		//haxe.Timer.measure (function () { 
+		//haxe.Timer.measure (function () {
 		if (!disableSpawns) {
 			for (spawn in IDManager.spawns) {
 				if (spawn.src.my) {
@@ -105,7 +105,7 @@ class Screeps {
 		for (defence in IDManager.defences) {
 			defence.tick ();
 		}
-		
+
 		Profiler.stop ();
 		Profiler.verifyStackZero ();
 		if (killBecauseOfLowCPU()) return;
@@ -133,13 +133,33 @@ class Screeps {
 		Profiler.start ("Run_preprocess");
 		var assignment = new Assignment ();
 
+		// If we run out of time
+		// Make sure military units get to run first
+		IDManager.creeps.sort (function (a,b) {
+			var Acounter = a.src.getActiveBodyparts(Attack) + a.src.getActiveBodyparts(RangedAttack) + a.src.getActiveBodyparts(Heal);
+			var AhealthFrac = (a.src.hits / a.src.hitsMax);
+
+			var Bcounter = b.src.getActiveBodyparts(Attack) + b.src.getActiveBodyparts(RangedAttack) + b.src.getActiveBodyparts(Heal);
+			var BhealthFrac = (b.src.hits / b.src.hitsMax);
+
+			var Ascore = Acounter / AhealthFrac;
+			var Bscore = Bcounter / BhealthFrac;
+
+			//trace ("Score for " + a.role + " : " + Ascore + " ( " + Acounter + " " + AhealthFrac + ")");
+			return if (Ascore > Bscore) -1;
+			else if (Ascore < Bscore) 1;
+			else 0;
+		});
+
 		for (creep in IDManager.creeps) {
 			if (creep.src.my) {
 				creep.preprocessAssignment(assignment);
-				if (killBecauseOfLowCPU()) return;
+				if (killBecauseOfLowCPU()) break;
 			}
 		}
 
+		Profiler.stop ();
+		Profiler.start ("Run_assignment");
 		assignment.run ();
 		IDManager.manager.assignment = assignment;
 
@@ -150,8 +170,11 @@ class Screeps {
 		Profiler.start ("Run_creeps");
 		for (creep in IDManager.creeps) {
 			if (creep.src.my) {
+				Profiler.start ("Run"+creep.originalRole);
 				//var now = haxe.Timer.stamp();
 				creep.tick();
+
+				Profiler.stop ();
 				//var t = haxe.Timer.stamp() - now;
 				//times[creep.role] += t;
 				//counts[creep.role] += 1;
@@ -173,7 +196,7 @@ class Screeps {
 			trace(i + ": " + (times[i]*1000) + " | " + (times[i]*1000/counts[i]));
 		}*/
 
-		
+
 		Profiler.stop ();
 		Profiler.verifyStackZero ();
 		//trace (Profiler.toString());
@@ -257,13 +280,18 @@ class Screeps {
 }
 
 class Assignment {
-	
-	var seen : Array<AICreep> = [];
-	var seenPos : Array<Int> = [];
+
+	var seen = new Map<Int,Int> ();
+	var counter = 0;
+	var counterPos = 0;
+	var seenPos = new Map<Int,Int> ();
 	var seenPos2 : Array<{x:Int,y:Int}> = [];
 
 	var matrix = new Array<Array<Int>> ();
 	var result : Array<Array<Int>>;
+
+	public function new () {
+	}
 
 	public function clearMatrix () {
 		seen = null;
@@ -274,20 +302,26 @@ class Assignment {
 	}
 
 	public function add ( creep : AICreep, x : Int, y : Int, score : Int ) {
-		var idx1 = seen.indexOf (creep);
-		if (idx1 == -1) {
-			idx1 = seen.length;
-			seen.push(creep);
+		var idx1;
+		if (seen.exists(creep.id)) {
+			idx1 = seen[creep.id];
+		} else {
+			idx1 = counter;
+			seen[creep.id] = idx1;
+			counter++;
 		}
 
-		var idx2 = seenPos.indexOf(y*AIMap.MapSize + x);
-		if (idx2 == -1) {
-			idx2 = seenPos.length;
-			seenPos.push(y*AIMap.MapSize + x);
+		var idx2;
+		if (seenPos.exists (y*AIMap.MapSize + x)) {
+			idx2 = seenPos[y*AIMap.MapSize + x];
+		} else {
+			idx2 = counterPos;
+			seenPos.set(y*AIMap.MapSize + x, idx2);
 			seenPos2.push({x:x, y:y});
+			counterPos++;
 		}
 
-		var size = Std.int(Math.max(seen.length, seenPos.length));
+		var size = Std.int(Math.max(counter, counterPos));
 		if (matrix.length < size) {
 			while (matrix.length < size) matrix.push ([]);
 			for (i in 0...matrix.length) {
@@ -299,8 +333,8 @@ class Assignment {
 	}
 
 	public function clearAllFor ( creep : AICreep ) {
-		var idx1 = seen.indexOf (creep);
-		if (idx1 != -1) {
+		var idx1 = seen[creep.id];
+		if (idx1 != null) {
 			for (i in 0...matrix[idx1].length) {
 				matrix[idx1][i] = 0;
 			}
@@ -308,8 +342,8 @@ class Assignment {
 	}
 
 	public function getMatch ( creep : AICreep ) {
-		var idx1 = seen.indexOf(creep);
-		if (idx1 != -1) {
+		var idx1 = seen[creep.id];
+		if (idx1 != null) {
 			var idx2 = result[idx1][1];
 			if (idx2 < seenPos2.length && result[idx1][2] > 0) {
 				return seenPos2[idx2];

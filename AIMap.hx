@@ -55,7 +55,7 @@ class AIMap extends Base {
 	}
 
 	public override function tick () {
-		
+
 		if (movementPatternMap == null) movementPatternMap = createMap(MapSize);
 		if (movementPatternMapSlow == null) movementPatternMapSlow = createMap(MapSize);
 		if (terrainMap == null) getTerrainMap ();
@@ -200,7 +200,7 @@ class AIMap extends Base {
 			var x = i - iterations;
 			gauss.push ((1/Math.sqrt(2*Math.PI*sigma*sigma))*Math.exp(-(x*x)/(2*sigma*sigma)));
 		}
-	
+
 		var size : Int = Std.int(Math.sqrt(map.length));
 
 		for (y in 1...size-1) {
@@ -372,7 +372,7 @@ class AIMap extends Base {
 			}
 		}
 		//var map = new js.html.Float32Array(size*size);
-		
+
 		return cast map;
 	}
 
@@ -474,14 +474,14 @@ class AIMap extends Base {
 			}
 		}
 
-		haxe.Timer.measure (function () { smooth(map, 4); });
+		smooth(map, 4);
 
 		for (spawn in Game.spawns) {
 			if (spawn.my) {
-				addDeltaRoomPos(map, spawn.pos.x, spawn.pos.y, 1000);
+				addDeltaRoomPos(map, spawn.pos.x, spawn.pos.y, 5000);
 			}
 		}
-		
+
 		smooth(map, 6);
 
 		//var pos = findmin(map);
@@ -499,7 +499,7 @@ class AIMap extends Base {
 			mins[i] = {x: mins[i].x-1, y: mins[i].y-1, value: mins[i].value};
 		}
 
-		var spawns = room.find(MySpawns);
+		var spawns = IDManager.spawns;
 
 
 		var bestScore = -100000.0;
@@ -509,8 +509,10 @@ class AIMap extends Base {
 		// Convert to scores
 		for (min in mins) {
 
-			var path = spawns[0].pos.findPathTo(min, {ignoreCreeps: true});
-			var score : Float = path.length != 0 ? -path.length : -1000;
+			var dist = IDManager.manager.pathfinder.approximateCloseDistance (spawns[0].src.pos, min);
+
+			//var path = spawns[0].src.pos.findPathTo(min, {ignoreCreeps: true});
+			var score : Float = dist != -1 ? -dist : -1000;
 			score -= min.value*0.5;
 
 			min.value = score;
@@ -529,7 +531,7 @@ class AIMap extends Base {
 		regroupingPoints = mins;
 
 		//room.createFlag(min.x-1, min.y-1, "" + Std.int(min.value));
-		
+
 
 		for (i in 0...5) {
 			if (i < mins.length) {
@@ -592,7 +594,7 @@ class AIMap extends Base {
 					}
 				}
 			}
-			
+
 			var targetDistance = 5;
 			for (y in 1...MapSize-1) {
 				for (x in 1...MapSize-1) {
@@ -606,8 +608,8 @@ class AIMap extends Base {
 			}
 		}
 
-		var map2 = createMap(MapSize);		
-		
+		var map2 = createMap(MapSize);
+
 		addMap(map2, movementPatternMap, -0.25);
 
 		smooth(map2, 2);
@@ -634,6 +636,28 @@ class AIMap extends Base {
 		for (structure in IDManager.constructionSites) {
 			addDeltaRoomPos (map,structure.src.pos.x,structure.src.pos.y, 10000);
 		}
+
+
+		// Worker paths
+		zero(map2);
+
+		for (workerPath in IDManager.manager.workerPaths) {
+			for (node in workerPath.path) {
+				addDeltaRoomPos (map2, node.x, node.y, 10);
+			}
+		}
+
+		maskWithReplacement(map2, terrainMap, -1);
+
+		smoothCross(map2, 1);
+
+		for (workerPath in IDManager.manager.workerPaths) {
+			for (node in workerPath.path) {
+				setRoomPos (map2, node.x, node.y, -1);
+			}
+		}
+
+		maskWithReplacement(map, map2, 10000);
 
 		var room = sources[0].room;
 		var mins = findmins(map);
@@ -731,7 +755,7 @@ class AIMap extends Base {
 		maskWithReplacement (map, terrainMap, 1000);
 
 		var map2 = createMap(MapSize);
-		
+
 		addMap(map2, movementPatternMap, -2);
 
 		smooth(map2, 2);
@@ -786,7 +810,7 @@ class AIMap extends Base {
 		}
 
 		maskWithReplacement(map2, terrainMap, -1);
-		
+
 		smoothCross(map2, 1);
 
 		for (workerPath in IDManager.manager.workerPaths) {

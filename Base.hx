@@ -1,11 +1,11 @@
 
 @:autoBuild(AutoBuildingMacro.fromBaseClass())
 class Base implements Ref.HasID {
-	public var type : TypeLookup;
-	public var id : Int;
-	public var linked : Entity;
-	public var manager : AIManager;
-	public var my : Bool;
+	public var type : TypeLookup = TypeLookup.AICreep;
+	public var id : Int = 0;
+	public var linked : Entity = null;
+	public var manager : AIManager = null;
+	public var my : Bool = false;
 
 	public function new () {
 	}

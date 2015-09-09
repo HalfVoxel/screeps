@@ -30,7 +30,7 @@ class AIPathfinder extends Base {
 	var calculatedPivots : Int;
 	var heuristicValues : Array<Float>;
 
-	static var costsWUnits : Array<Float>;
+	var costsWUnits : Array<Float>;
 
 	static var nodes : Array<State>;
 
@@ -89,7 +89,9 @@ class AIPathfinder extends Base {
 			}
 
 			for (structure in IDManager.structures) {
-				costsWUnits[structure.pos.y*Room.Width + structure.pos.x] = -1;
+				if (structure.structureType != Rampart && structure.structureType != Road) {
+					costsWUnits[structure.pos.y*Room.Width + structure.pos.x] = -1;
+				}
 			}
 		}
 
@@ -238,12 +240,6 @@ class AIPathfinder extends Base {
 	public function findPathNew (from : Vec2, to : Vec2, ignoreStartEnd : Bool, costs : Array<Float>, ?options : PathOptions, ?customCosts : Array<Float>) {
 		pathID++;
 		queue.clear();
-
-		var closest = findClosestNode(to, costs, customCosts);
-
-		if (closest == null) return null;
-
-		nodes[closest.y*Room.Width + closest.x].target = true;
 		
 
 		var start = nodes[from.y*Room.Width + from.x];
@@ -254,6 +250,16 @@ class AIPathfinder extends Base {
 			}
 		}
 		
+		if (RoomPosition.chebyshevDistance (from, to) <= 1) {
+			return [nodes[start.y*Room.Width+start.x], nodes[to.y*Room.Width+to.x]];
+		}
+
+		var closest = findClosestNode(to, costs, customCosts);
+
+		if (closest == null) return null;
+
+		nodes[closest.y*Room.Width + closest.x].target = true;
+
 		start.parent = null;
 		start.pathID = pathID;
 		start.g = 0;
